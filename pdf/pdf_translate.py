@@ -316,7 +316,8 @@ def render(src, out, preview=None):
         print(f"font subsetting skipped: {err}", file=sys.stderr)
     doc.save(out, garbage=3, deflate=True)
     if preview:
-        doc[0].get_pixmap(dpi=100).save(preview)
+        # Render from the saved file: after subset_fonts the in-memory document's fonts are stale.
+        pymupdf.open(out)[0].get_pixmap(dpi=100).save(preview)
     print(json.dumps({"ok": True, "minScale": round(min_scale, 3)}))
 
 
