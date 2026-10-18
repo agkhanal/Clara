@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>Join your visit · LinguaLink</title>
+  <script>try{const t=JSON.parse(localStorage.getItem("ll.theme"));if(t)document.documentElement.dataset.theme=t}catch{}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Join -->
+  <main id="join" class="setup-screen">
+    <div class="corner-actions"><button class="icon-btn" type="button" data-theme-toggle></button></div>
+    <a href="/" class="back-link"><span data-icon="arrowLeft" data-icon-class="icon-sm"></span>LinguaLink</a>
+    <div class="card setup-card">
+      <div class="setup-head patient">
+        <div class="role-icon" data-icon="user" data-icon-class="icon-lg"></div>
+        <h1>Join your visit</h1>
+        <p>Enter the 6-letter code from your doctor.</p>
+      </div>
+      <form class="setup-form" id="join-form" autocomplete="off">
+        <input class="code-input" id="code-input" placeholder="ABC123" maxlength="6" autocapitalize="characters" spellcheck="false" aria-label="Visit code">
+        <p class="form-error" id="join-error" hidden></p>
+        <button class="btn btn-violet btn-lg btn-block" type="submit" id="join-btn">Join</button>
+      </form>
+    </div>
+    <p class="fine-print"><span data-icon="shield" data-icon-class="icon-sm"></span>No app or account needed. Your visit stays private.</p>
+  </main>
+
+  <!-- Session -->
+  <div id="session" class="session" hidden>
+    <header class="topbar">
+      <a href="/" class="icon-btn" aria-label="Home" data-icon="arrowLeft"></a>
+      <div class="topbar-title">
+        <h1 id="visit-title"></h1>
+        <div class="status" id="presence"><span class="dot"></span><span id="presence-text"></span></div>
+      </div>
+      <div class="topbar-actions">
+        <span class="lang-chip" id="lang-chip" data-icon="globe"><span></span></span>
+        <button class="icon-btn" id="autoplay-btn" type="button"></button>
+        <button class="icon-btn" type="button" data-theme-toggle></button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="active" data-pane="chat" type="button" data-i18n="conversation">Conversation</button>
+      <button data-pane="docs" type="button"><span data-i18n="documents">Documents</span><span class="count" id="doc-badge" hidden></span></button>
+    </nav>
+
+    <div class="workspace" data-active="chat">
+      <section class="pane pane-chat">
+        <div class="messages" id="messages" aria-live="polite"></div>
+        <div class="composer big">
+          <div class="rec-bar" id="rec-bar" hidden></div>
+          <button type="button" class="big-mic" id="mic-btn"></button>
+          <div class="big-mic-label" id="mic-label" data-i18n="tapToSpeak">Tap to speak</div>
+          <form class="composer-row" id="composer" autocomplete="off" hidden>
+            <input class="input" id="text-input" maxlength="4000" dir="auto" data-i18n-placeholder="typePlaceholder">
+            <button type="submit" class="send-btn" id="send-btn" aria-label="Send" disabled></button>
+          </form>
+          <button type="button" class="link-btn" id="mode-toggle" data-i18n="typeInstead">Type instead</button>
+        </div>
+      </section>
+
+      <aside class="pane pane-docs">
+        <div class="pane-heading"><h2 data-i18n="documents">Documents</h2></div>
+        <div class="doc-list" id="doc-list"></div>
+      </aside>
+    </div>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/patient.js"></script>
+</body>
+</html>

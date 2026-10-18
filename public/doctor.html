@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>Clinician · LinguaLink</title>
+  <script>try{const t=JSON.parse(localStorage.getItem("ll.theme"));if(t)document.documentElement.dataset.theme=t}catch{}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Setup -->
+  <main id="setup" class="setup-screen">
+    <div class="corner-actions"><button class="icon-btn" type="button" data-theme-toggle></button></div>
+    <a href="/" class="back-link"><span data-icon="arrowLeft" data-icon-class="icon-sm"></span>LinguaLink</a>
+    <div class="card setup-card">
+      <div class="setup-head doctor">
+        <div class="role-icon" data-icon="stethoscope" data-icon-class="icon-lg"></div>
+        <h1>Start a visit</h1>
+        <p>Your patient joins from their own phone by scanning a QR code.</p>
+      </div>
+      <form class="setup-form" id="setup-form">
+        <label class="field">
+          <span>Your name</span>
+          <input id="doctor-name" placeholder="Dr. Patel" autocomplete="name" maxlength="80">
+        </label>
+        <label class="field">
+          <span>Patient's language</span>
+          <select id="patient-language" required></select>
+        </label>
+        <button class="btn btn-primary btn-lg btn-block" type="submit" id="start-btn">Start visit</button>
+      </form>
+    </div>
+    <p class="fine-print"><span data-icon="shield" data-icon-class="icon-sm"></span>Visits are private and disappear when the server restarts.</p>
+  </main>
+
+  <!-- Session -->
+  <div id="session" class="session" hidden>
+    <header class="topbar">
+      <a href="/" class="icon-btn" aria-label="Home" data-icon="arrowLeft"></a>
+      <div class="topbar-title">
+        <h1><span id="visit-title">Visit</span> · <span class="code" id="code-label"></span></h1>
+        <div class="status" id="presence"><span class="dot"></span><span id="presence-text">Waiting for patient</span></div>
+      </div>
+      <div class="topbar-actions">
+        <span class="lang-chip" id="lang-chip" data-icon="globe"><span></span></span>
+        <button class="icon-btn" id="autoplay-btn" type="button"></button>
+        <button class="icon-btn" type="button" data-theme-toggle></button>
+        <button class="btn btn-soft btn-sm" id="invite-btn" type="button" data-icon="userPlus"><span class="btn-label">Invite</span></button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="active" data-pane="chat" type="button">Conversation</button>
+      <button data-pane="docs" type="button">Documents <span class="count neutral" id="doc-count" hidden></span></button>
+    </nav>
+
+    <div class="workspace" data-active="chat">
+      <section class="pane pane-chat">
+        <div class="messages" id="messages" aria-live="polite"></div>
+        <div class="composer">
+          <div class="rec-bar" id="rec-bar" hidden></div>
+          <form class="composer-row" id="composer" autocomplete="off">
+            <button type="button" class="mic-btn" id="mic-btn" aria-label="Record voice"></button>
+            <input class="input" id="text-input" placeholder="Type in English…" maxlength="4000">
+            <button type="submit" class="send-btn" id="send-btn" aria-label="Send" disabled></button>
+          </form>
+        </div>
+      </section>
+
+      <aside class="pane pane-docs">
+        <div class="card doc-composer">
+          <h2>Send a document</h2>
+          <p class="sub" id="doc-sub">Written in English, delivered in the patient's language.</p>
+          <div class="doc-mode" role="tablist">
+            <button type="button" class="active" data-mode="write" data-icon="pen">Write</button>
+            <button type="button" data-mode="upload" data-icon="upload">Upload PDF</button>
+          </div>
+          <div class="chips" id="doc-types"></div>
+          <label class="field">
+            <span>Title</span>
+            <input id="doc-title" maxlength="200">
+          </label>
+          <label class="field" id="write-fields">
+            <span>Content (English)</span>
+            <div class="textarea-wrap">
+              <textarea id="doc-content" rows="9"></textarea>
+              <button type="button" class="dictate" id="dictate-btn"></button>
+            </div>
+          </label>
+          <div id="upload-fields" hidden>
+            <label class="dropzone" id="dropzone">
+              <input type="file" id="file-input" accept="application/pdf,image/png,image/jpeg,image/webp" hidden>
+              <span data-icon="upload"></span>
+              <strong>Choose a PDF or photo</strong>
+              <small>or drag it here · PDF, JPG, or PNG up to 20 MB</small>
+            </label>
+            <div class="file-chip" id="file-chip" hidden>
+              <div class="doc-icon" data-icon="file"></div>
+              <div class="meta"><div class="name" id="file-name"></div><div class="size" id="file-size"></div></div>
+              <button type="button" class="icon-btn" id="file-clear" aria-label="Remove file" data-icon="x"></button>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" type="button" id="doc-send">Translate &amp; send</button>
+          <p class="progress-note" id="doc-progress" hidden>Reading and translating the document. Longer files can take up to a minute.</p>
+        </div>
+        <div class="pane-heading"><h2>Sent to patient</h2></div>
+        <div class="doc-list" id="doc-list"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="modal" id="invite-modal" hidden>
+    <div class="card invite" id="invite-modal-body"></div>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/doctor.js"></script>
+</body>
+</html>

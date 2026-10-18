@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3f6f7">
+  <title>LinguaLink</title>
+  <meta name="description" content="A live medical interpreter: patients and doctors speak their own language and understand each other.">
+  <script>try{const t=JSON.parse(localStorage.getItem("ll.theme"));if(t)document.documentElement.dataset.theme=t}catch{}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="landing">
+    <div class="landing-inner">
+      <div class="landing-head">
+        <a href="/" class="brand"><span class="brand-mark" data-icon="logo"></span>LinguaLink</a>
+        <button class="icon-btn" type="button" data-theme-toggle></button>
+      </div>
+
+      <section class="hero">
+        <span class="eyebrow"><span class="dot-live"></span>Live medical interpreter · 23 languages</span>
+        <h1>Every patient deserves to be <em>understood.</em></h1>
+        <p>Speak in your own language and the other person hears it in theirs. After the visit, summaries, medicines, and care instructions arrive translated so patients can follow them at home.</p>
+      </section>
+
+      <div class="roles">
+        <a href="/doctor.html" class="role doctor">
+          <span class="role-icon" data-icon="stethoscope" data-icon-class="icon-lg"></span>
+          <h2>I'm a clinician</h2>
+          <p>Start a visit, talk with your patient by voice, and send translated documents.</p>
+          <span class="go">Start a visit <span data-icon="arrowRight"></span></span>
+        </a>
+        <a href="/patient.html" class="role patient">
+          <span class="role-icon" data-icon="user" data-icon-class="icon-lg"></span>
+          <h2>I'm a patient</h2>
+          <p>Join with the code from your doctor. No app or account needed.</p>
+          <span class="go">Join a visit <span data-icon="arrowRight"></span></span>
+        </a>
+      </div>
+
+      <div class="features">
+        <div class="feature">
+          <div class="f-icon" data-icon="mic"></div>
+          <h3>Voice to voice</h3>
+          <p>Tap, speak, and the translation is read aloud in a natural voice on the other side.</p>
+        </div>
+        <div class="feature">
+          <div class="f-icon" data-icon="file"></div>
+          <h3>Take-home documents</h3>
+          <p>Write a summary or upload a PDF. Patients get it in plain language in their own language, ready to print.</p>
+        </div>
+        <div class="feature">
+          <div class="f-icon" data-icon="chats"></div>
+          <h3>Nothing to install</h3>
+          <p>Patients scan a QR code with their phone camera and the whole app appears in their language.</p>
+        </div>
+      </div>
+
+      <div class="lang-cloud" id="lang-cloud"></div>
+      <p class="landing-foot">Translations by Claude. Always confirm critical information with a qualified interpreter when available.</p>
+    </div>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script>
+    hydrateIcons();
+    api("/api/config").then(({ languages }) => {
+      const cloud = document.getElementById("lang-cloud");
+      for (const l of languages) {
+        const s = document.createElement("span");
+        s.textContent = l.native;
+        s.title = l.name;
+        cloud.appendChild(s);
+      }
+    }).catch(() => {});
+  </script>
+</body>
+</html>
