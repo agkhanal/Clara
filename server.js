@@ -21,34 +21,35 @@ const GROQ_KEY = process.env.GROQ_API_KEY;
 const ELEVEN_KEY = process.env.ELEVENLABS_API_KEY?.startsWith("your-") ? null : process.env.ELEVENLABS_API_KEY;
 
 const LANGUAGES = [
-  { name: "English", native: "English", code: "en" },
-  { name: "Spanish", native: "Español", code: "es" },
-  { name: "Mandarin Chinese", native: "中文", code: "zh" },
-  { name: "Vietnamese", native: "Tiếng Việt", code: "vi" },
-  { name: "Arabic", native: "العربية", code: "ar" },
-  { name: "Nepali", native: "नेपाली", code: "ne" },
-  { name: "Hindi", native: "हिन्दी", code: "hi" },
-  { name: "Bengali", native: "বাংলা", code: "bn" },
-  { name: "Urdu", native: "اردو", code: "ur" },
-  { name: "Korean", native: "한국어", code: "ko" },
-  { name: "Tagalog", native: "Tagalog", code: "tl" },
-  { name: "French", native: "Français", code: "fr" },
-  { name: "Haitian Creole", native: "Kreyòl ayisyen", code: "ht" },
-  { name: "Portuguese", native: "Português", code: "pt" },
-  { name: "Russian", native: "Русский", code: "ru" },
-  { name: "Ukrainian", native: "Українська", code: "uk" },
-  { name: "Persian", native: "فارسی", code: "fa" },
-  { name: "Japanese", native: "日本語", code: "ja" },
-  { name: "Somali", native: "Soomaali", code: "so" },
-  { name: "Swahili", native: "Kiswahili", code: "sw" },
-  { name: "Amharic", native: "አማርኛ", code: "am" },
-  { name: "Burmese", native: "မြန်မာ", code: "my" },
-  { name: "Polish", native: "Polski", code: "pl" },
-  { name: "German", native: "Deutsch", code: "de" },
+  { name: "English", native: "English", code: "en", script: "Latin" },
+  { name: "Spanish", native: "Español", code: "es", script: "Latin" },
+  { name: "Mandarin Chinese", native: "中文", code: "zh", script: "Simplified Chinese" },
+  { name: "Vietnamese", native: "Tiếng Việt", code: "vi", script: "Vietnamese Latin" },
+  { name: "Arabic", native: "العربية", code: "ar", script: "Arabic" },
+  { name: "Nepali", native: "नेपाली", code: "ne", script: "Devanagari" },
+  { name: "Hindi", native: "हिन्दी", code: "hi", script: "Devanagari" },
+  { name: "Bengali", native: "বাংলা", code: "bn", script: "Bengali" },
+  { name: "Urdu", native: "اردو", code: "ur", script: "Urdu (Perso-Arabic, never Devanagari)" },
+  { name: "Korean", native: "한국어", code: "ko", script: "Hangul" },
+  { name: "Tagalog", native: "Tagalog", code: "tl", script: "Latin" },
+  { name: "French", native: "Français", code: "fr", script: "Latin" },
+  { name: "Haitian Creole", native: "Kreyòl ayisyen", code: "ht", script: "Latin" },
+  { name: "Portuguese", native: "Português", code: "pt", script: "Latin" },
+  { name: "Russian", native: "Русский", code: "ru", script: "Cyrillic" },
+  { name: "Ukrainian", native: "Українська", code: "uk", script: "Cyrillic" },
+  { name: "Persian", native: "فارسی", code: "fa", script: "Persian (Perso-Arabic)" },
+  { name: "Japanese", native: "日本語", code: "ja", script: "Japanese" },
+  { name: "Somali", native: "Soomaali", code: "so", script: "Latin" },
+  { name: "Swahili", native: "Kiswahili", code: "sw", script: "Latin" },
+  { name: "Amharic", native: "አማርኛ", code: "am", script: "Ge'ez (Ethiopic)" },
+  { name: "Burmese", native: "မြန်မာ", code: "my", script: "Burmese" },
+  { name: "Polish", native: "Polski", code: "pl", script: "Latin" },
+  { name: "German", native: "Deutsch", code: "de", script: "Latin" },
 ];
 const ENGLISH = LANGUAGES[0];
 const langByName = (name) => LANGUAGES.find((l) => l.name === name);
-const langLabel = (l) => (l.native === l.name ? l.name : `${l.name} (${l.native})`);
+// Naming the script stops models from slipping into a related language's script (Nepali/Urdu → Hindi).
+const langLabel = (l) => `${l.native === l.name ? l.name : `${l.name} (${l.native})`}, written in ${l.script} script`;
 
 // ElevenLabs model per language: multilingual_v2 sounds best where supported, v3 covers the long tail
 const ELEVEN_V2 = new Set(["en", "es", "zh", "ar", "hi", "ko", "tl", "fr", "pt", "ru", "uk", "ja", "pl", "de"]);
@@ -208,6 +209,30 @@ function conversationContext(session) {
     .join("\n");
 }
 
+// Letters from a script that doesn't belong to the target language mean the model slipped
+// (e.g. a Hindi word in Devanagari inside Urdu). Latin is always allowed: drug names, numbers, units.
+const SCRIPT_RANGES = {
+  Devanagari: /[\u0900-\u097F]/,
+  Arabic: /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/,
+  Bengali: /[\u0980-\u09FF]/,
+  Ethiopic: /[\u1200-\u139F]/,
+  Myanmar: /[\u1000-\u109F]/,
+  Cyrillic: /[\u0400-\u04FF]/,
+  Hangul: /[\u1100-\u11FF\uAC00-\uD7AF]/,
+  Han: /[\u4E00-\u9FFF]/,
+  Kana: /[\u3040-\u30FF]/,
+};
+const ALLOWED_SCRIPTS = {
+  ne: ["Devanagari"], hi: ["Devanagari"], ar: ["Arabic"], ur: ["Arabic"], fa: ["Arabic"], bn: ["Bengali"],
+  am: ["Ethiopic"], my: ["Myanmar"], ru: ["Cyrillic"], uk: ["Cyrillic"], ko: ["Hangul", "Han"], zh: ["Han"], ja: ["Han", "Kana"],
+};
+function wrongScript(text, lang) {
+  const allowed = ALLOWED_SCRIPTS[lang.code] || [];
+  return Object.entries(SCRIPT_RANGES).some(([name, re]) => !allowed.includes(name) && re.test(text));
+}
+const scriptFix = (lang) =>
+  `\nImportant: an earlier attempt mixed in letters from another writing system. Write all ${lang.name} text only in ${lang.script} script.`;
+
 async function translateMessage(session, text, from, to) {
   const patient = session.language;
   const system = `You are a professional medical interpreter at a clinic visit between an English-speaking doctor and a patient who speaks ${langLabel(patient)}.
@@ -221,7 +246,10 @@ Translate the text inside <message> from ${langLabel(from)} into ${langLabel(to)
 Earlier conversation (English) is given only for context; do not translate it.`;
   const context = conversationContext(session);
   const prompt = `${context ? `<context>\n${context}\n</context>\n\n` : ""}<message>${text}</message>`;
-  return claude({ system, prompt });
+  const out = await claude({ system, prompt });
+  if (!wrongScript(out, to)) return out;
+  console.warn(`Wrong script in ${to.name} translation, retrying`);
+  return claude({ system: system + scriptFix(to), prompt });
 }
 
 const INTERPRET_SCHEMA = {
@@ -365,11 +393,12 @@ TITLE: <translated title>
 <translated document>`;
 
   try {
-    const out = await claude({
-      system,
-      prompt: `<title>${title}</title>\n<document>\n${content}\n</document>`,
-      maxTokens: 16000,
-    });
+    const prompt = `<title>${title}</title>\n<document>\n${content}\n</document>`;
+    let out = await claude({ system, prompt, maxTokens: 16000 });
+    if (wrongScript(out, lang)) {
+      console.warn(`Wrong script in ${lang.name} document, retrying`);
+      out = await claude({ system: system + scriptFix(lang), prompt, maxTokens: 16000 });
+    }
     const match = out.match(/^\s*TITLE:\s*(.+?)\s*\n-{3,}\s*\n([\s\S]+)$/);
     const doc = {
       id: randomUUID(),
@@ -445,7 +474,8 @@ async function translateBlocks(blocks, lang) {
   if (current.length) chunks.push(current);
 
   const system = `You translate the text of a medical document from English into ${langLabel(lang)} for a patient. Each item is one text box on the page (a heading, paragraph, table cell, label, or footer). Items are in reading order, so use neighbouring items for context and keep terms consistent.
-- Translate every item and return it with the same id.
+- Translate every item and return it with the same id, in the same order. Each id's text must be the translation of that id's own text only: never move, merge, or swap text between ids.
+- Do not reorder or mirror anything for right-to-left languages. Each translation is placed back exactly where its source text was; the page layout is handled separately.
 - Keep "\n" line breaks where an item has them.
 - Never add, remove, or change medical information, drug names, doses, numbers, dates, times, phone numbers, addresses, or people's names. Keep drug names and names of people and places as written.
 - Use clear, everyday ${lang.name} in its native script${lang.code === "ne" ? ", as spoken in Nepal, not Hindi" : ""}.
@@ -453,23 +483,29 @@ async function translateBlocks(blocks, lang) {
 - Plain text only.`;
 
   const results = new Map();
+  async function request(items, extra = "") {
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      output_config: { effort: "medium", format: { type: "json_schema", schema: BLOCKS_SCHEMA } },
+      system: system + extra,
+      messages: [{ role: "user", content: JSON.stringify(items.map((b) => ({ id: b.id, text: b.text }))) }],
+    });
+    if (response.stop_reason === "refusal") throw new Error("Model declined the request");
+    const out = JSON.parse(response.content.filter((b) => b.type === "text").map((b) => b.text).join(""));
+    for (const item of out.items) results.set(item.id, item.text);
+  }
   let next = 0;
   async function worker() {
-    while (next < chunks.length) {
-      const chunk = chunks[next++];
-      const response = await anthropic.messages.create({
-        model: MODEL,
-        max_tokens: 16000,
-        output_config: { effort: "medium", format: { type: "json_schema", schema: BLOCKS_SCHEMA } },
-        system,
-        messages: [{ role: "user", content: JSON.stringify(chunk.map((b) => ({ id: b.id, text: b.text }))) }],
-      });
-      if (response.stop_reason === "refusal") throw new Error("Model declined the request");
-      const out = JSON.parse(response.content.filter((b) => b.type === "text").map((b) => b.text).join(""));
-      for (const item of out.items) results.set(item.id, item.text);
-    }
+    while (next < chunks.length) await request(chunks[next++]);
   }
   await Promise.all(Array.from({ length: Math.min(4, chunks.length) }, worker));
+
+  const slipped = blocks.filter((b) => results.has(b.id) && wrongScript(results.get(b.id), lang));
+  if (slipped.length) {
+    console.warn(`Wrong script in ${slipped.length} ${lang.name} PDF text boxes, retrying them`);
+    await request(slipped, scriptFix(lang));
+  }
   return results;
 }
 
@@ -847,12 +883,10 @@ app.post("/api/ui-strings", async (req, res) => {
   if (uiCache.has(key)) return res.json(uiCache.get(key));
 
   try {
-    const out = await claude({
-      system: `You localize the interface of a medical visit app for patients who speak ${langLabel(lang)}.
-Translate every JSON value into short, warm, natural ${lang.name} in its native script${lang.code === "ne" ? " (Nepali as spoken in Nepal, not Hindi)" : ""}. Keep keys unchanged and keep any {placeholders} exactly as they are. Output only the JSON object.`,
-      prompt: JSON.stringify(strings),
-      maxTokens: 8000,
-    });
+    const system = `You localize the interface of a medical visit app for patients who speak ${langLabel(lang)}.
+Translate every JSON value into short, warm, natural ${lang.name} in its native script${lang.code === "ne" ? " (Nepali as spoken in Nepal, not Hindi)" : ""}. Keep keys unchanged and keep any {placeholders} exactly as they are. Output only the JSON object.`;
+    let out = await claude({ system, prompt: JSON.stringify(strings), maxTokens: 8000 });
+    if (wrongScript(out, lang)) out = await claude({ system: system + scriptFix(lang), prompt: JSON.stringify(strings), maxTokens: 8000 });
     const parsed = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
     const result = {};
     for (const [k, english] of Object.entries(strings)) {
