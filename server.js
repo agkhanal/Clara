@@ -121,6 +121,7 @@ function snapshot(session) {
   return {
     id: session.id,
     doctorName: session.doctorName,
+    doctorLanguage: session.doctorLanguage,
     language: session.language,
     messages: session.messages,
     documents: session.documents,
@@ -138,19 +139,22 @@ const roleOf = (v) => (v === "doctor" ? "doctor" : v === "patient" ? "patient" :
 
 app.get("/api/config", (req, res) => {
   res.json({
-    languages: LANGUAGES.filter((l) => l.code !== "en"),
+    languages: LANGUAGES,
     features: { voiceInput: Boolean(GROQ_KEY || ELEVEN_KEY), naturalVoice: Boolean(ELEVEN_KEY) },
   });
 });
 
 app.post("/api/sessions", (req, res) => {
   const language = langByName(req.body.patientLanguage);
-  if (!language || language.code === "en") return res.status(400).json({ error: "Pick the patient's language." });
+  const doctorLanguage = langByName(req.body.doctorLanguage) || ENGLISH;
+  if (!language) return res.status(400).json({ error: "Pick the patient's language." });
+  if (language.code === doctorLanguage.code) return res.status(400).json({ error: "Pick a patient language different from yours." });
   const doctorName = String(req.body.doctorName || "").trim().slice(0, 80) || "Your doctor";
   const id = newCode();
   sessions.set(id, {
     id,
     doctorName,
+    doctorLanguage,
     language,
     messages: [],
     documents: [],
@@ -234,8 +238,7 @@ const scriptFix = (lang) =>
   `\nImportant: an earlier attempt mixed in letters from another writing system. Write all ${lang.name} text only in ${lang.script} script.`;
 
 async function translateMessage(session, text, from, to) {
-  const patient = session.language;
-  const system = `You are a professional medical interpreter at a clinic visit between an English-speaking doctor and a patient who speaks ${langLabel(patient)}.
+  const system = `You are a professional medical interpreter at a clinic visit between a doctor who speaks ${langLabel(session.doctorLanguage)} and a patient who speaks ${langLabel(session.language)}.
 
 Translate the text inside <message> from ${langLabel(from)} into ${langLabel(to)}.
 - Output only the translation: no quotes, notes, transliterations, or explanations.
@@ -243,7 +246,7 @@ Translate the text inside <message> from ${langLabel(from)} into ${langLabel(to)
 - Preserve meaning, tone, and person exactly. Never add, drop, or soften medical information, numbers, doses, or timing.
 - When translating for the patient, prefer everyday words over jargon; keep drug names as written.
 - If the message is already in ${to.name}, return it unchanged.
-Earlier conversation (English) is given only for context; do not translate it.`;
+Earlier conversation (in ${session.doctorLanguage.name}) is given only for context; do not translate it.`;
   const context = conversationContext(session);
   const prompt = `${context ? `<context>\n${context}\n</context>\n\n` : ""}<message>${text}</message>`;
   const out = await claude({ system, prompt });
@@ -261,14 +264,16 @@ const INTERPRET_SCHEMA = {
 
 // Patient speech is the hard direction: speech recognition for languages like Nepali is error-prone and
 // patients mix in English, so a stronger model reconstructs what was said before translating it.
-async function interpretPatient(session, text, via, hint) {
+async function interpretPatient(session, text, via, hint, retry = false) {
   const lang = session.language;
+  const doctorLang = session.doctorLanguage;
+  const mixed = doctorLang.code === "en" ? "English" : `English or ${doctorLang.name}`;
   const ne = lang.code === "ne";
   const source =
     via === "voice"
       ? `<transcript> is automatic speech recognition of what the patient just said. It often contains errors:
 - ${lang.name} words misheard, misspelled${ne ? " (often spelled the Hindi way)" : ""}, or split/joined wrongly${ne ? ' (e.g. "दुकसा" for "दुख्छ", "पची" for "पछि", "छाई ना" for "छैन")' : ""}
-- English words the patient mixed in, written phonetically in ${lang.name} script${ne ? ' (e.g. "हेडेक" = headache, "रुम्मेट" = roommate, "आई फिल टायर्ड" = I feel tired)' : ""}
+- ${mixed} words the patient mixed in, written phonetically in ${lang.name} script${ne ? ' (e.g. "हेडेक" = headache, "रुम्मेट" = roommate, "आई फिल टायर्ड" = I feel tired)' : ""}
 - ${lang.name} written in Latin letters${ne ? ' (e.g. "mero kotha sathi" = मेरो कोठा साथी)' : ""}
 ${
   hint
@@ -278,9 +283,9 @@ ${
     : ""
 }
 Reconstruct what the patient actually said, choosing the reading that sounds closest to the transcript.`
-      : `<transcript> is a message the patient typed. It may be in ${lang.name} script, in ${lang.name} written with Latin letters, mixed with English, or contain typos. Work out what they meant.`;
+      : `<transcript> is a message the patient typed. It may be in ${lang.name} script, in ${lang.name} written with Latin letters, mixed with ${mixed}, or contain typos. Work out what they meant.`;
 
-  const system = `You are a professional interpreter at a clinic visit between an English-speaking doctor and a patient who speaks ${langLabel(lang)}. Like any professional interpreter, you render exactly what the patient says, nothing more and nothing less.
+  const system = `You are a professional interpreter at a clinic visit between a doctor who speaks ${langLabel(doctorLang)} and a patient who speaks ${langLabel(lang)}. Like any professional interpreter, you render exactly what the patient says, nothing more and nothing less.
 
 ${source}
 
@@ -291,8 +296,8 @@ Rules:
 - Never invent symptoms, body parts, medicines, numbers, or names.
 
 Return:
-- "cleaned": the message in correct ${lang.name} (native script)${ne ? ", as spoken in Nepal, not Hindi" : ""}, with any English the patient used written in English letters. Fix recognition errors only; add nothing.
-- "translation": the message in natural first-person English. If a part truly can't be reconstructed, write [unclear] for that part only.
+- "cleaned": the message in correct ${lang.name} (native script)${ne ? ", as spoken in Nepal, not Hindi" : ""}, with any words the patient said in another language kept in that language's own script. Fix recognition errors only; add nothing.
+- "translation": the message in natural first-person ${langLabel(doctorLang)}, for the doctor. If a part truly can't be reconstructed, write [unclear] for that part only.
 The earlier conversation is context only; do not translate it.`;
 
   const context = conversationContext(session);
@@ -302,7 +307,7 @@ The earlier conversation is context only; do not translate it.`;
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
     output_config: { effort: "low", format: { type: "json_schema", schema: INTERPRET_SCHEMA } },
-    system,
+    system: retry ? system + scriptFix(doctorLang) : system,
     messages: [
       {
         role: "user",
@@ -315,6 +320,10 @@ The earlier conversation is context only; do not translate it.`;
   if (response.stop_reason === "refusal") throw new Error("Model declined the request");
   const out = JSON.parse(response.content.filter((b) => b.type === "text").map((b) => b.text).join(""));
   const result = { cleaned: out.cleaned.trim() || text, translation: out.translation.trim() };
+  if (!retry && wrongScript(result.translation, doctorLang)) {
+    console.warn(`Wrong script in ${doctorLang.name} translation, retrying`);
+    return interpretPatient(session, text, via, hint, true);
+  }
   console.log(`[patient ${via}] heard: ${text}${hint ? ` | audio→en: ${hint}` : ""}\n  → ${result.cleaned}\n  → ${result.translation}`);
   return result;
 }
@@ -328,8 +337,8 @@ app.post("/api/sessions/:id/messages", async (req, res) => {
   if (text.length > 4000) return res.status(400).json({ error: "Message is too long." });
   const ref = session.documents.some((d) => d.id === req.body.ref) ? req.body.ref : null;
 
-  const from = sender === "doctor" ? ENGLISH : session.language;
-  const to = sender === "doctor" ? session.language : ENGLISH;
+  const from = sender === "doctor" ? session.doctorLanguage : session.language;
+  const to = sender === "doctor" ? session.language : session.doctorLanguage;
   const clientId = String(req.body.clientId || "");
   broadcast(session, "activity", { role: sender, state: "translating", clientId });
 
@@ -381,7 +390,7 @@ app.post("/api/sessions/:id/documents", async (req, res) => {
   if (content.length > 20000) return res.status(400).json({ error: "Document is too long." });
 
   const lang = session.language;
-  const system = `You translate medical documents from English into ${langLabel(lang)} for a patient to take home.
+  const system = `You translate medical documents from ${langLabel(session.doctorLanguage)} into ${langLabel(lang)} for a patient to take home.
 - Translate everything faithfully. Never add, remove, or change medical information, drug names, doses, numbers, dates, or times.
 - Use clear, everyday ${lang.name} a patient without medical training understands, in its native script.${lang.code === "ne" ? " Use Nepali as spoken in Nepal, not Hindi." : ""}
 - Keep the structure: line breaks, headings, numbered and bulleted lists. Use plain text, no Markdown symbols like ** or #.
@@ -408,6 +417,7 @@ TITLE: <translated title>
       translatedTitle: match ? match[1].trim() : title,
       translatedContent: match ? match[2].trim() : out,
       language: lang.name,
+      sourceLanguage: session.doctorLanguage.name,
       at: Date.now(),
     };
     session.documents.push(doc);
@@ -458,7 +468,7 @@ const BLOCKS_SCHEMA = {
 };
 
 // Translates a document's text boxes in batches; returns Map(id -> translation).
-async function translateBlocks(blocks, lang) {
+async function translateBlocks(blocks, lang, sourceLang) {
   const chunks = [];
   let current = [];
   let size = 0;
@@ -473,7 +483,7 @@ async function translateBlocks(blocks, lang) {
   }
   if (current.length) chunks.push(current);
 
-  const system = `You translate the text of a medical document from English into ${langLabel(lang)} for a patient. Each item is one text box on the page (a heading, paragraph, table cell, label, or footer). Items are in reading order, so use neighbouring items for context and keep terms consistent.
+  const system = `You translate the text of a medical document into ${langLabel(lang)} for a patient. The document is usually in ${sourceLang.name}, but translate any language you find. Each item is one text box on the page (a heading, paragraph, table cell, label, or footer). Items are in reading order, so use neighbouring items for context and keep terms consistent.
 - Translate every item and return it with the same id, in the same order. Each id's text must be the translation of that id's own text only: never move, merge, or swap text between ids.
 - Do not reorder or mirror anything for right-to-left languages. Each translation is placed back exactly where its source text was; the page layout is handled separately.
 - Keep "\n" line breaks where an item has them.
@@ -538,7 +548,7 @@ async function translatePdfLayout(session, file, type, givenTitle) {
 
     const titleBlock = [...blocks].filter((b) => b.page === 0).sort((a, b) => b.size - a.size)[0];
     const extra = givenTitle ? [{ id: -1, text: givenTitle }] : [];
-    const t = await translateBlocks([...blocks, ...extra], session.language);
+    const t = await translateBlocks([...blocks, ...extra], session.language, session.doctorLanguage);
     const translated = blocks.map((b) => ({ ...b, translation: t.get(b.id) || "" }));
     const result = await pdfTool(["render", src, out, preview], { blocks: translated });
     console.log(`PDF translated: ${blocks.length} text boxes, smallest text scale ${result.minScale}`);
@@ -560,6 +570,7 @@ async function translatePdfLayout(session, file, type, givenTitle) {
       translatedTitle: givenTitle ? t.get(-1) || givenTitle : t.get(titleBlock.id) || titleBlock.text,
       translatedContent: blocksToText(translated, (b) => b.translation || b.text),
       language: session.language.name,
+      sourceLanguage: session.doctorLanguage.name,
       at: Date.now(),
       file: { name: file.originalname.slice(0, 200), mime: file.mimetype, size: file.size },
       translatedFile: true,
@@ -584,10 +595,11 @@ const FILE_DOC_SCHEMA = {
 // For photos and scanned PDFs: Claude reads the image and returns the text in both languages.
 async function translateFileAsText(session, file, type, givenTitle) {
   const lang = session.language;
+  const doctorLang = session.doctorLanguage;
   const system = `You prepare medical documents for a patient who speaks ${langLabel(lang)}. The attached file may be a PDF, a scan, or a photo.
 Return:
-- "title": a short English title for the document${givenTitle ? ` — use exactly: ${givenTitle}` : ""}.
-- "text": the document's full content in English as plain text, keeping its structure (headings, lists, line breaks, table rows as lines). Skip page numbers and repeated headers/footers. Keep blanks in forms as "____". If parts are not in English, translate them to English.
+- "title": a short ${doctorLang.name} title for the document${givenTitle ? ` — use exactly: ${givenTitle}` : ""}.
+- "text": the document's full content in ${doctorLang.name} as plain text, keeping its structure (headings, lists, line breaks, table rows as lines). Skip page numbers and repeated headers/footers. Keep blanks in forms as "____". If parts are not in ${doctorLang.name}, translate them to ${doctorLang.name}.
 - "translatedTitle" and "translatedText": the same title and content in ${lang.name}, in its native script${lang.code === "ne" ? ", as spoken in Nepal, not Hindi" : ""}.
 Translation rules: never add, remove, or change medical information, drug names, doses, numbers, dates, or times. Use everyday words a patient understands. Keep drug names as written. Plain text only, no Markdown symbols.`;
 
@@ -620,6 +632,7 @@ Translation rules: never add, remove, or change medical information, drug names,
     translatedTitle: out.translatedTitle.trim(),
     translatedContent: out.translatedText.trim(),
     language: lang.name,
+    sourceLanguage: doctorLang.name,
     at: Date.now(),
     file: { name: file.originalname.slice(0, 200), mime: file.mimetype, size: file.size },
   };
@@ -876,14 +889,14 @@ app.post("/api/ui-strings", async (req, res) => {
   const strings = req.body.strings;
   const valid =
     strings && typeof strings === "object" && Object.values(strings).every((v) => typeof v === "string" && v.length < 400);
-  if (!lang || !valid || Object.keys(strings).length > 80) return res.status(400).json({ error: "Bad request" });
+  if (!lang || !valid || Object.keys(strings).length > 120) return res.status(400).json({ error: "Bad request" });
   if (lang.code === "en") return res.json(strings);
 
   const key = `${lang.code}|${createHash("sha1").update(JSON.stringify(strings)).digest("hex")}`;
   if (uiCache.has(key)) return res.json(uiCache.get(key));
 
   try {
-    const system = `You localize the interface of a medical visit app for patients who speak ${langLabel(lang)}.
+    const system = `You localize the interface of a medical visit app for people who speak ${langLabel(lang)}.
 Translate every JSON value into short, warm, natural ${lang.name} in its native script${lang.code === "ne" ? " (Nepali as spoken in Nepal, not Hindi)" : ""}. Keep keys unchanged and keep any {placeholders} exactly as they are. Output only the JSON object.`;
     let out = await claude({ system, prompt: JSON.stringify(strings), maxTokens: 8000 });
     if (wrongScript(out, lang)) out = await claude({ system: system + scriptFix(lang), prompt: JSON.stringify(strings), maxTokens: 8000 });

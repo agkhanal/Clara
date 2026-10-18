@@ -462,7 +462,7 @@ function renderDocCard(doc, opts) {
   const current = () =>
     view === "translated"
       ? { title: doc.translatedTitle, body: doc.translatedContent, lang: doc.language }
-      : { title: doc.title, body: doc.content, lang: "English" };
+      : { title: doc.title, body: doc.content, lang: doc.sourceLanguage || "English" };
   const paint = () => {
     const c = current();
     $("h3", el).textContent = c.title;

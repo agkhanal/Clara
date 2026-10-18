@@ -18,15 +18,15 @@ const STRINGS = {
   you: "You",
   doctor: "Doctor",
   listen: "Listen",
-  playTranslation: "Play in English",
-  showOriginal: "Show English",
-  hideOriginal: "Hide English",
-  showTranslation: "Show English",
-  hideTranslation: "Hide English",
-  original: "English",
+  playTranslation: "Play in {doctorLang}",
+  showOriginal: "Show {doctorLang}",
+  hideOriginal: "Hide {doctorLang}",
+  showTranslation: "Show {doctorLang}",
+  hideTranslation: "Hide {doctorLang}",
+  original: "{doctorLang}",
   translation: "Your doctor sees",
   emptyTitle: "Speak in your own language",
-  emptyBody: "Press the button below and talk. Your doctor hears you in English, and their answers are read to you in your language.",
+  emptyBody: "Press the button below and talk. Your doctor hears you in {doctorLang}, and their answers are read to you in your language.",
   docsEmpty: "Papers from your doctor, like medicines and care instructions, will appear here in your language.",
   newDocument: "Your doctor sent you a document",
   doctorSpeaking: "Your doctor is speaking…",
@@ -41,7 +41,7 @@ const STRINGS = {
   translatedFile: "Open the translated document",
   reply: "Reply",
   sendReply: "Send",
-  english: "English",
+  english: "{doctorLang}",
   type_summary: "Visit summary",
   type_medication: "Medicine",
   type_instructions: "Care instructions",
@@ -53,7 +53,8 @@ const STRINGS = {
 
 let T = { ...STRINGS };
 function t(key, vars = {}) {
-  return (T[key] || STRINGS[key] || key).replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+  const all = { doctorLang: state?.session?.doctorLanguage?.native || "English", ...vars };
+  return (T[key] || STRINGS[key] || key).replace(/\{(\w+)\}/g, (_, k) => all[k] ?? "");
 }
 
 const state = {
@@ -154,7 +155,7 @@ function startSession(session) {
 }
 
 async function loadStrings(lang) {
-  const cacheKey = `ll.strings.${lang.code}.v3`;
+  const cacheKey = `ll.strings.${lang.code}.v4`;
   const cached = pref(cacheKey, null);
   if (cached) {
     T = { ...STRINGS, ...cached };

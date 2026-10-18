@@ -1,4 +1,13 @@
-const LABELS = {
+// English source strings; translated into the doctor's language when it isn't English.
+const STRINGS = {
+  visit: "Visit",
+  waitingPatient: "Waiting for patient",
+  patientConnected: "Patient connected",
+  reconnecting: "Reconnecting…",
+  invite: "Invite",
+  conversation: "Conversation",
+  documents: "Documents",
+  typePlaceholder: "Type in {lang}…",
   you: "You",
   doctor: "Doctor",
   patient: "Patient",
@@ -10,30 +19,84 @@ const LABELS = {
   hideTranslation: "Hide translation",
   original: "Original",
   translation: "Patient sees",
+  translating: "Translating…",
+  patientSpeaking: "Patient is speaking…",
+  patientTranslating: "Translating patient's message…",
+  listening: "Listening…",
+  transcribing: "Transcribing…",
+  cancel: "Cancel",
+  recordVoice: "Record voice",
+  stopAndSend: "Stop and send",
+  didntCatch: "Didn't catch that. Try again a little closer to the mic.",
+  micBlocked: "Microphone access is blocked. Allow it in your browser's site settings.",
+  noMic: "No microphone was found.",
+  micFailed: "Couldn't start the microphone.",
+  noVoiceServer: "Voice input isn't set up on the server.",
+  autoOn: "Reading translations aloud (on)",
+  autoOff: "Reading translations aloud (off)",
+  autoOnToast: "Translations will be read aloud",
+  autoOffToast: "Auto-read is off",
+  inviteTitle: "Invite your patient",
+  inviteBody: "Have them scan the code with their phone camera, or enter the visit code.",
+  visitCode: "Visit code",
+  copy: "Copy",
+  linkCopied: "Link copied",
+  inviteHint:
+    "The phone must be on the same Wi-Fi as this computer. The first time it opens, the browser shows a security warning because the link uses this laptop's own certificate: tap Advanced, then Proceed (or Visit this website on iPhone).",
+  ended: "This visit has ended",
+  endedBody: "The server was restarted, so this visit is no longer available.",
+  newVisit: "Start a new visit",
+  sendDocument: "Send a document",
+  docSub: "Written in {doctorLang}, delivered in {patientLang}.",
+  write: "Write",
+  uploadPdf: "Upload PDF",
+  title: "Title",
+  contentLabel: "Content ({lang})",
+  choosePdf: "Choose a PDF or photo",
+  dropHint: "or drag it here · PDF, JPG, or PNG up to 20 MB",
+  titleOptional: "Optional: we'll use the document's own title",
+  translateSend: "Translate & send",
+  readingDoc: "Reading document",
+  translatingBtn: "Translating",
+  progressNote: "Reading and translating the document. Longer files can take up to a minute.",
+  sentToPatient: "Sent to patient",
+  nothingSent: "Nothing sent yet. Documents you send appear here, in {doctorLang} and in {patientLang}.",
+  addTitle: "Add a title first.",
+  fillDoc: "Fill in the document before sending.",
+  chooseFile: "Choose a PDF or photo first.",
+  badFile: "Choose a PDF or a photo (JPG or PNG).",
+  tooBig: "That file is over 20 MB.",
+  sentIn: "Sent to patient in {lang}",
+  listenDoc: "Listen",
+  print: "Print",
+  originalFile: "Original file",
+  translatedFile: "Translated PDF",
+  dictate: "Dictate",
+  stop: "Stop",
+  transcribingShort: "Transcribing",
+  type_summary: "Visit summary",
+  type_medication: "Medications",
+  type_instructions: "Care instructions",
+  type_form: "Questions",
+  type_other: "Other",
+  title_summary: "After-visit summary",
+  title_medication: "Your medications",
+  title_instructions: "Care instructions",
+  title_form: "Questions for you",
+  template_summary: "Reason for visit:\n\nWhat we found:\n\nWhat we did today:\n\nNext steps:\n\nFollow-up appointment:\n",
+  template_medication: "Medicine:\nDose:\nWhen to take it:\nFor how long:\nWhat it's for:\nSide effects to watch for:\n",
+  template_instructions: "What to do at home:\n- \n\nWhat to avoid:\n- \n\nCall us or go to the emergency room if:\n- \n",
+  template_form: "Please answer these questions:\n1. \n2. \n3. \n",
 };
 
-const DOC_TYPES = [
-  {
-    id: "summary",
-    label: "Visit summary",
-    title: "After-visit summary",
-    template: "Reason for visit:\n\nWhat we found:\n\nWhat we did today:\n\nNext steps:\n\nFollow-up appointment:\n",
-  },
-  {
-    id: "medication",
-    label: "Medications",
-    title: "Your medications",
-    template: "Medicine:\nDose:\nWhen to take it:\nFor how long:\nWhat it's for:\nSide effects to watch for:\n",
-  },
-  {
-    id: "instructions",
-    label: "Care instructions",
-    title: "Care instructions",
-    template: "What to do at home:\n- \n\nWhat to avoid:\n- \n\nCall us or go to the emergency room if:\n- \n",
-  },
-  { id: "form", label: "Questions", title: "Questions for you", template: "Please answer these questions:\n1. \n2. \n3. \n" },
-  { id: "other", label: "Other", title: "", template: "" },
-];
+let T = { ...STRINGS };
+function t(key, vars = {}) {
+  return (T[key] ?? STRINGS[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+}
+
+const DOC_TYPE_IDS = ["summary", "medication", "instructions", "form", "other"];
+const docTitle = (id) => (id === "other" ? "" : t(`title_${id}`));
+const docTemplate = (id) => (id === "other" ? "" : t(`template_${id}`));
 
 const state = {
   config: null,
@@ -47,6 +110,8 @@ const state = {
   seen: new Set(),
   docSeen: new Set(),
   docType: "summary",
+  docMode: "write",
+  docFile: null,
   invite: null,
 };
 
@@ -70,9 +135,13 @@ hydrateIcons();
 el.mic.innerHTML = icon("mic");
 el.send.innerHTML = icon("send");
 
-const recBar = createRecBar($("#rec-bar"), { cancel: "Cancel", listening: "Listening…" });
+const recLabels = { cancel: t("cancel"), listening: t("listening") };
+const recBar = createRecBar($("#rec-bar"), recLabels);
 const recorder = new VoiceRecorder({ onLevel: (v) => recBar.level(v), onLimit: () => finishRecording() });
 const dictRecorder = new VoiceRecorder({ onLimit: () => stopDictation() });
+
+const doctorLang = () => state.session.doctorLanguage || { name: "English", native: "English", code: "en" };
+const patientLang = () => state.session.language;
 
 /* ---------- Setup ---------- */
 
@@ -83,13 +152,15 @@ const dictRecorder = new VoiceRecorder({ onLimit: () => stopDictation() });
     toast(err.message, "error");
     return;
   }
-  const select = $("#patient-language");
-  const last = pref("ll.doctor.lang", "Spanish");
-  for (const l of state.config.languages) {
-    const opt = new Option(l.native === l.name ? l.name : `${l.name} — ${l.native}`, l.name);
-    if (l.name === last) opt.selected = true;
-    select.add(opt);
-  }
+  const fill = (select, chosen) => {
+    for (const l of state.config.languages) {
+      const opt = new Option(l.native === l.name ? l.name : `${l.name} — ${l.native}`, l.name);
+      if (l.name === chosen) opt.selected = true;
+      select.add(opt);
+    }
+  };
+  fill($("#doctor-language"), pref("ll.doctor.ownLang", "English"));
+  fill($("#patient-language"), pref("ll.doctor.lang", "Spanish"));
   $("#doctor-name").value = pref("ll.doctor.name", "");
 
   const code = new URLSearchParams(location.search).get("session");
@@ -107,12 +178,15 @@ $("#setup-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = $("#start-btn");
   const doctorName = $("#doctor-name").value.trim();
+  const doctorLanguage = $("#doctor-language").value;
   const patientLanguage = $("#patient-language").value;
+  if (doctorLanguage === patientLanguage) return toast("Pick a patient language different from yours.", "error");
   setPref("ll.doctor.name", doctorName);
+  setPref("ll.doctor.ownLang", doctorLanguage);
   setPref("ll.doctor.lang", patientLanguage);
   btn.classList.add("is-busy");
   try {
-    const session = await api("/api/sessions", { method: "POST", body: { doctorName, patientLanguage } });
+    const session = await api("/api/sessions", { method: "POST", body: { doctorName, doctorLanguage, patientLanguage } });
     history.replaceState(null, "", `doctor.html?session=${session.id}`);
     await startSession(session);
   } catch (err) {
@@ -124,25 +198,68 @@ $("#setup-form").addEventListener("submit", async (e) => {
 
 async function startSession(session) {
   state.session = session;
-  const lang = session.language;
   el.setup.hidden = true;
   el.session.hidden = false;
-  document.title = `Visit ${session.id} · Clara`;
+  document.documentElement.lang = doctorLang().code;
   $("#code-label").textContent = session.id;
+  const lang = patientLang();
   $("#lang-chip span").textContent = lang.native === lang.name ? lang.name : `${lang.name} · ${lang.native}`;
-  $("#doc-sub").textContent = `Written in English, delivered in ${lang.name}.`;
   renderDocTypes();
   selectDocType("summary");
-  paintAutoplay();
 
   try {
     state.invite = await api(`/api/sessions/${session.id}/invite`);
   } catch {
     state.invite = null;
   }
+  applyStrings();
+  connect();
+  loadStrings();
+}
+
+async function loadStrings() {
+  const lang = doctorLang();
+  if (lang.code === "en") return;
+  const cacheKey = `ll.doctorStrings.${lang.code}.v1`;
+  let translated = pref(cacheKey, null);
+  if (!translated) {
+    try {
+      translated = await api("/api/ui-strings", { method: "POST", body: { lang: lang.name, strings: STRINGS } });
+      setPref(cacheKey, translated);
+    } catch {
+      return;
+    }
+  }
+  // Swap untouched templates for translated ones.
+  const keepTitle = !el.docTitle.value.trim() || el.docTitle.value === docTitle(state.docType);
+  const keepContent = !el.docContent.value.trim() || el.docContent.value === docTemplate(state.docType);
+  T = { ...STRINGS, ...translated };
+  if (state.docMode === "write") {
+    if (keepTitle) el.docTitle.value = docTitle(state.docType);
+    if (keepContent) el.docContent.value = docTemplate(state.docType);
+  }
+  applyStrings();
+}
+
+function applyStrings() {
+  for (const node of $$("#session [data-i18n]")) node.textContent = t(node.dataset.i18n);
+  const dl = doctorLang();
+  const pl = patientLang();
+  document.title = `${t("visit")} ${state.session.id} · Clara`;
+  el.input.placeholder = t("typePlaceholder", { lang: dl.native });
+  $("#doc-sub").textContent = t("docSub", { doctorLang: dl.native, patientLang: pl.native });
+  $("#content-label").textContent = t("contentLabel", { lang: dl.native });
+  if (state.docMode === "upload") el.docTitle.placeholder = t("titleOptional");
+  recLabels.cancel = t("cancel");
+  recLabels.listening = t("listening");
+  recBar.cancelButton.textContent = t("cancel");
+  el.mic.setAttribute("aria-label", recorder.active ? t("stopAndSend") : t("recordVoice"));
+  renderDocTypes();
+  paintDictate(dictRecorder.active ? "recording" : "idle");
+  paintPresence();
+  paintAutoplay();
   renderAll();
   renderDocs();
-  connect();
 }
 
 /* ---------- Real-time ---------- */
@@ -172,7 +289,7 @@ function connect() {
     },
     connection(status) {
       if (status === "open") return paintPresence();
-      $("#presence-text").textContent = "Reconnecting…";
+      $("#presence-text").textContent = t("reconnecting");
       $("#presence").classList.remove("online");
       if (status === "closed") recoverConnection();
     },
@@ -194,23 +311,29 @@ function showEnded() {
   el.messages.innerHTML = `
     <div class="empty">
       <div class="empty-icon">${icon("info", "icon-lg")}</div>
-      <h2>This visit has ended</h2>
-      <p>The server was restarted, so this visit is no longer available.</p>
-      <p style="margin-top:16px"><a class="btn btn-primary" href="doctor.html">Start a new visit</a></p>
+      <h2></h2><p></p>
+      <p style="margin-top:16px"><a class="btn btn-primary" href="doctor.html"></a></p>
     </div>`;
+  $(".empty h2", el.messages).textContent = t("ended");
+  $(".empty p", el.messages).textContent = t("endedBody");
+  $(".empty a", el.messages).textContent = t("newVisit");
   $(".composer").hidden = true;
 }
 
 function paintPresence() {
   const online = state.presence.patient;
   $("#presence").classList.toggle("online", online);
-  $("#presence-text").textContent = online ? "Patient connected" : "Waiting for patient";
+  $("#presence-text").textContent = online ? t("patientConnected") : t("waitingPatient");
 }
 
 /* ---------- Conversation ---------- */
 
 function msgOpts() {
-  return { viewer: "doctor", labels: LABELS, docTitle: (id) => state.session.documents.find((d) => d.id === id)?.title };
+  const labels = {};
+  for (const k of ["you", "doctor", "patient", "listen", "playTranslation", "showOriginal", "hideOriginal", "showTranslation", "hideTranslation", "original", "translation"]) {
+    labels[k] = t(k);
+  }
+  return { viewer: "doctor", labels, docTitle: (id) => state.session.documents.find((d) => d.id === id)?.title };
 }
 
 function renderAll() {
@@ -270,15 +393,14 @@ function renderIndicator() {
   el.indicator.hidden = s === "idle";
   el.indicator.className = `typing ${s === "recording" ? "recording" : ""}`;
   el.indicator.innerHTML = `<span class="dots"><i></i><i></i><i></i></span><span></span>`;
-  $("span:last-child", el.indicator).textContent =
-    s === "recording" ? "Patient is speaking…" : "Translating patient's message…";
+  $("span:last-child", el.indicator).textContent = s === "recording" ? t("patientSpeaking") : t("patientTranslating");
   if (s !== "idle") scrollDown();
 }
 
 async function sendMessage(text, via) {
   const clientMsgId = uid();
   clearEmptyState();
-  const p = renderPending(text, { own: true, label: LABELS.you, translating: "Translating…" });
+  const p = renderPending(text, { own: true, label: t("you"), translating: t("translating") });
   state.pending.set(clientMsgId, p);
   el.pendingBox.append(p);
   scrollDown(true);
@@ -317,14 +439,14 @@ el.input.addEventListener("input", updateSend);
 /* ---------- Voice ---------- */
 
 function micError(err) {
-  if (err.name === "NotAllowedError") return "Microphone access is blocked. Allow it in your browser's site settings.";
-  if (err.name === "NotFoundError") return "No microphone was found.";
-  return "Couldn't start the microphone.";
+  if (err.name === "NotAllowedError") return t("micBlocked");
+  if (err.name === "NotFoundError") return t("noMic");
+  return t("micFailed");
 }
 
 function canRecord() {
   if (!VoiceRecorder.supported()) return toast(VoiceRecorder.unsupportedReason(), "error"), false;
-  if (!state.config.features.voiceInput) return toast("Voice input isn't set up on the server (GROQ_API_KEY).", "error"), false;
+  if (!state.config.features.voiceInput) return toast(t("noVoiceServer"), "error"), false;
   return true;
 }
 
@@ -339,7 +461,7 @@ el.mic.addEventListener("click", async () => {
   }
   el.mic.classList.add("recording");
   el.mic.innerHTML = icon("stop");
-  el.mic.setAttribute("aria-label", "Stop and send");
+  el.mic.setAttribute("aria-label", t("stopAndSend"));
   recBar.recording(recorder);
   postActivity(state.session.id, "doctor", "recording", state.clientId);
 });
@@ -347,7 +469,7 @@ el.mic.addEventListener("click", async () => {
 function resetMic() {
   el.mic.classList.remove("recording");
   el.mic.innerHTML = icon("mic");
-  el.mic.setAttribute("aria-label", "Record voice");
+  el.mic.setAttribute("aria-label", t("recordVoice"));
 }
 
 async function finishRecording() {
@@ -357,17 +479,17 @@ async function finishRecording() {
   if (!blob) {
     recBar.hide();
     postActivity(state.session.id, "doctor", "idle", state.clientId);
-    return toast("Didn't catch that. Try again a little closer to the mic.");
+    return toast(t("didntCatch"));
   }
   postActivity(state.session.id, "doctor", "transcribing", state.clientId);
-  recBar.processing("Transcribing…");
+  recBar.processing(t("transcribing"));
   el.mic.classList.add("busy");
   try {
-    const { text } = await transcribe(blob, "en");
+    const { text } = await transcribe(blob, doctorLang().code);
     if (text) sendMessage(text, "voice");
     else {
       postActivity(state.session.id, "doctor", "idle", state.clientId);
-      toast("Didn't catch that. Try again.");
+      toast(t("didntCatch"));
     }
   } catch (err) {
     postActivity(state.session.id, "doctor", "idle", state.clientId);
@@ -391,7 +513,7 @@ function paintAutoplay() {
   const b = $("#autoplay-btn");
   b.innerHTML = icon(state.autoplay ? "volume" : "volumeOff");
   b.classList.toggle("is-on", state.autoplay);
-  const label = state.autoplay ? "Reading translations aloud (on)" : "Reading translations aloud (off)";
+  const label = state.autoplay ? t("autoOn") : t("autoOff");
   b.title = label;
   b.setAttribute("aria-label", label);
 }
@@ -400,7 +522,7 @@ $("#autoplay-btn").addEventListener("click", () => {
   setPref("ll.doctor.autoplay", state.autoplay);
   if (!state.autoplay) Speech.stop();
   paintAutoplay();
-  toast(state.autoplay ? "Translations will be read aloud" : "Auto-read is off");
+  toast(state.autoplay ? t("autoOnToast") : t("autoOffToast"));
 });
 
 /* ---------- Invite ---------- */
@@ -409,25 +531,29 @@ function renderInvitePanel() {
   const box = document.createElement("div");
   box.className = "card invite";
   const inv = state.invite;
-  const lang = state.session.language;
   box.innerHTML = `
-    <h2>Invite your patient</h2>
-    <p>Have them scan the code with their phone camera, or enter the visit code.</p>
+    <h2></h2>
+    <p class="invite-body-text"></p>
     <div class="invite-body">
       ${inv ? `<div class="qr">${inv.svg}</div>` : ""}
       <div>
-        <div class="invite-code-label">Visit code</div>
+        <div class="invite-code-label"></div>
         <div class="invite-code">${escapeHtml(state.session.id)}</div>
         <span class="lang-chip">${icon("globe")}<span></span></span>
       </div>
     </div>
-    ${inv ? `<div class="invite-link"><code></code><button type="button" class="btn btn-soft btn-sm copy-btn">${icon("copy", "icon-sm")}Copy</button></div>` : ""}
-    ${inv?.local ? `<p class="invite-hint">${icon("wifi")}<span>The phone must be on the same Wi-Fi as this computer. The first time it opens, the browser shows a security warning because the link uses this laptop&#39;s own certificate: tap <strong>Advanced</strong>, then <strong>Proceed</strong> (or <strong>Visit this website</strong> on iPhone).</span></p>` : ""}`;
-  $(".lang-chip span", box).textContent = lang.native;
+    ${inv ? `<div class="invite-link"><code></code><button type="button" class="btn btn-soft btn-sm copy-btn">${icon("copy", "icon-sm")}<span></span></button></div>` : ""}
+    ${inv?.local ? `<p class="invite-hint">${icon("wifi")}<span></span></p>` : ""}`;
+  $("h2", box).textContent = t("inviteTitle");
+  $(".invite-body-text", box).textContent = t("inviteBody");
+  $(".invite-code-label", box).textContent = t("visitCode");
+  $(".lang-chip span", box).textContent = patientLang().native;
   if (inv) {
     $("code", box).textContent = inv.url;
+    $(".copy-btn span", box).textContent = t("copy");
     $(".copy-btn", box).addEventListener("click", () => copyText(inv.url));
   }
+  if (inv?.local) $(".invite-hint span", box).textContent = t("inviteHint");
   return box;
 }
 
@@ -442,19 +568,13 @@ async function copyText(text) {
     document.execCommand("copy");
     ta.remove();
   }
-  toast("Link copied", "success");
+  toast(t("linkCopied"), "success");
 }
 
 $("#invite-btn").addEventListener("click", () => {
   const body = $("#invite-modal-body");
-  const panel = renderInvitePanel();
-  body.innerHTML = panel.innerHTML;
+  body.replaceChildren(...renderInvitePanel().childNodes);
   body.insertAdjacentHTML("afterbegin", `<button class="icon-btn modal-close" type="button" aria-label="Close">${icon("x")}</button>`);
-  $(".lang-chip span", body).textContent = state.session.language.native;
-  if (state.invite) {
-    $("code", body).textContent = state.invite.url;
-    $(".copy-btn", body).addEventListener("click", () => copyText(state.invite.url));
-  }
   $(".modal-close", body).addEventListener("click", closeModal);
   el.modal.hidden = false;
 });
@@ -466,14 +586,18 @@ document.addEventListener("keydown", (e) => e.key === "Escape" && closeModal());
 
 /* ---------- Documents ---------- */
 
-const typeLabel = (id) => DOC_TYPES.find((t) => t.id === id)?.label || "Document";
-
 function docOpts() {
   return {
-    labels: { listen: "Listen", print: "Print", english: "English", originalFile: "Original file", translatedFile: "Translated PDF" },
-    typeLabel,
+    labels: {
+      listen: t("listenDoc"),
+      print: t("print"),
+      english: doctorLang().native,
+      originalFile: t("originalFile"),
+      translatedFile: t("translatedFile"),
+    },
+    typeLabel: (id) => t(`type_${id}`),
     defaultView: "translated",
-    languageLabel: state.session.language.native,
+    languageLabel: patientLang().native,
     fileUrl: (doc, v) => `/api/sessions/${state.session.id}/documents/${doc.id}/file${v ? `?v=${v}` : ""}`,
   };
 }
@@ -482,7 +606,8 @@ function renderDocs() {
   el.docList.innerHTML = "";
   const docs = state.session.documents;
   if (!docs.length) {
-    el.docList.innerHTML = `<div class="empty" style="padding:12px"><p>Nothing sent yet. Documents you send appear here, in English and in ${escapeHtml(state.session.language.name)}.</p></div>`;
+    el.docList.innerHTML = `<div class="empty" style="padding:12px"><p></p></div>`;
+    $(".empty p", el.docList).textContent = t("nothingSent", { doctorLang: doctorLang().native, patientLang: patientLang().native });
   }
   for (const d of [...docs].reverse()) el.docList.append(renderDocCard(d, docOpts()));
   const count = $("#doc-count");
@@ -500,32 +625,28 @@ function handleDocument(doc) {
 function renderDocTypes() {
   const box = $("#doc-types");
   box.innerHTML = "";
-  for (const t of DOC_TYPES) {
+  for (const id of DOC_TYPE_IDS) {
     const chip = document.createElement("button");
     chip.type = "button";
-    chip.className = "chip";
-    chip.dataset.type = t.id;
-    chip.innerHTML = icon(DOC_ICONS[t.id]);
-    chip.append(t.label);
-    chip.addEventListener("click", () => selectDocType(t.id));
+    chip.className = `chip${id === state.docType ? " active" : ""}`;
+    chip.dataset.type = id;
+    chip.innerHTML = icon(DOC_ICONS[id]);
+    chip.append(t(`type_${id}`));
+    chip.addEventListener("click", () => selectDocType(id));
     box.append(chip);
   }
 }
 
 function selectDocType(id) {
-  const prev = DOC_TYPES.find((t) => t.id === state.docType);
-  const next = DOC_TYPES.find((t) => t.id === id);
+  const prev = state.docType;
   state.docType = id;
   $$("#doc-types .chip").forEach((c) => c.classList.toggle("active", c.dataset.type === id));
   if (state.docMode === "upload") return;
-  if (!el.docTitle.value.trim() || el.docTitle.value === prev.title) el.docTitle.value = next.title;
-  if (!el.docContent.value.trim() || el.docContent.value === prev.template) el.docContent.value = next.template;
+  if (!el.docTitle.value.trim() || el.docTitle.value === docTitle(prev)) el.docTitle.value = docTitle(id);
+  if (!el.docContent.value.trim() || el.docContent.value === docTemplate(prev)) el.docContent.value = docTemplate(id);
 }
 
 /* Write vs. upload */
-
-state.docMode = "write";
-state.docFile = null;
 
 for (const btn of $$(".doc-mode button")) {
   btn.addEventListener("click", () => {
@@ -534,10 +655,9 @@ for (const btn of $$(".doc-mode button")) {
     const upload = state.docMode === "upload";
     $("#write-fields").hidden = upload;
     $("#upload-fields").hidden = !upload;
-    const typeTitle = DOC_TYPES.find((t) => t.id === state.docType).title;
     if (upload) {
-      if (el.docTitle.value === typeTitle) el.docTitle.value = "";
-      el.docTitle.placeholder = "Optional: we'll use the document's own title";
+      if (el.docTitle.value === docTitle(state.docType)) el.docTitle.value = "";
+      el.docTitle.placeholder = t("titleOptional");
     } else {
       el.docTitle.placeholder = "";
       selectDocType(state.docType);
@@ -548,8 +668,8 @@ for (const btn of $$(".doc-mode button")) {
 function setDocFile(file) {
   if (!file) return;
   const ok = ["application/pdf", "image/png", "image/jpeg", "image/webp"].includes(file.type);
-  if (!ok) return toast("Choose a PDF or a photo (JPG or PNG).", "error");
-  if (file.size > 20 * 1024 * 1024) return toast("That file is over 20 MB.", "error");
+  if (!ok) return toast(t("badFile"), "error");
+  if (file.size > 20 * 1024 * 1024) return toast(t("tooBig"), "error");
   state.docFile = file;
   $("#file-name").textContent = file.name;
   $("#file-size").textContent = formatBytes(file.size);
@@ -579,11 +699,10 @@ dropzone.addEventListener("drop", (e) => {
 });
 
 async function sendWrittenDoc() {
-  const template = DOC_TYPES.find((t) => t.id === state.docType).template;
   const title = el.docTitle.value.trim();
   const content = el.docContent.value.trim();
-  if (!title) return toast("Add a title first."), null;
-  if (!content || content === template.trim()) return toast("Fill in the document before sending."), null;
+  if (!title) return toast(t("addTitle")), null;
+  if (!content || content === docTemplate(state.docType).trim()) return toast(t("fillDoc")), null;
   const doc = await api(`/api/sessions/${state.session.id}/documents`, {
     method: "POST",
     body: { type: state.docType, title, content },
@@ -595,7 +714,7 @@ async function sendWrittenDoc() {
 }
 
 async function sendUploadedDoc() {
-  if (!state.docFile) return toast("Choose a PDF or photo first."), null;
+  if (!state.docFile) return toast(t("chooseFile")), null;
   const form = new FormData();
   form.append("file", state.docFile, state.docFile.name);
   form.append("type", state.docType);
@@ -609,19 +728,19 @@ async function sendUploadedDoc() {
 el.docSend.addEventListener("click", async () => {
   const upload = state.docMode === "upload";
   el.docSend.classList.add("is-busy");
-  el.docSend.textContent = upload ? "Reading document" : "Translating";
+  el.docSend.textContent = upload ? t("readingDoc") : t("translatingBtn");
   $("#doc-progress").hidden = !upload;
   try {
     const doc = upload ? await sendUploadedDoc() : await sendWrittenDoc();
     if (doc) {
       handleDocument(doc);
-      toast(`Sent to patient in ${state.session.language.name}`, "success");
+      toast(t("sentIn", { lang: patientLang().native }), "success");
     }
   } catch (err) {
     toast(err.message, "error");
   } finally {
     el.docSend.classList.remove("is-busy");
-    el.docSend.textContent = "Translate & send";
+    el.docSend.textContent = t("translateSend");
     $("#doc-progress").hidden = true;
   }
 });
@@ -632,7 +751,11 @@ function paintDictate(mode) {
   el.dictate.classList.toggle("recording", mode === "recording");
   el.dictate.disabled = mode === "busy";
   el.dictate.innerHTML =
-    mode === "recording" ? `${icon("stop")}Stop` : mode === "busy" ? `<span class="spinner"></span>Transcribing` : `${icon("mic")}Dictate`;
+    mode === "recording"
+      ? `${icon("stop")}${escapeHtml(t("stop"))}`
+      : mode === "busy"
+        ? `<span class="spinner"></span>${escapeHtml(t("transcribingShort"))}`
+        : `${icon("mic")}${escapeHtml(t("dictate"))}`;
 }
 paintDictate("idle");
 
@@ -652,8 +775,8 @@ async function stopDictation() {
   paintDictate("busy");
   const blob = await dictRecorder.stop();
   try {
-    if (!blob) toast("Didn't catch that. Try again.");
-    else insertAtCursor(el.docContent, (await transcribe(blob, "en")).text);
+    if (!blob) toast(t("didntCatch"));
+    else insertAtCursor(el.docContent, (await transcribe(blob, doctorLang().code)).text);
   } catch (err) {
     toast(err.message, "error");
   } finally {

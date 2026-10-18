@@ -67,7 +67,7 @@
     hydrateIcons();
     api("/api/config").then(({ languages }) => {
       const cloud = document.getElementById("lang-cloud");
-      for (const l of languages) {
+      for (const l of languages.filter((l) => l.code !== "en")) {
         const s = document.createElement("span");
         s.textContent = l.native;
         s.title = l.name;
