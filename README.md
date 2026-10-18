@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/clara-wordmark.png" alt="Clara" width="420">
+  <img src="public/clara-wordmark-white.png" alt="Clara" width="420">
 </p>
 
 <p align="center"><strong>A live medical interpreter in your pocket.</strong><br>
