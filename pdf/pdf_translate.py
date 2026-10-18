@@ -11,16 +11,106 @@ onto neighbouring content or off the page.
 
 import html
 import json
+import os
 import re
 import sys
+import urllib.request
 
 import pymupdf
 
 LETTER = re.compile(r"[^\W\d_]", re.UNICODE)
 
+FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+FONT_URL = "https://github.com/notofonts/notofonts.github.io/raw/main/fonts/{family}/hinted/ttf/{family}-{weight}.ttf"
+# (characters, sans family, serif family). Anything else (Latin, Cyrillic, Vietnamese, digits) uses Noto Sans/Serif;
+# CJK and Hangul fall through to MuPDF's built-in fallback fonts.
+SCRIPTS = [
+    (re.compile(r"[ऀ-ॿ꣠-ꣿ᳐-᳿]"), "NotoSansDevanagari", "NotoSerifDevanagari"),
+    (re.compile(r"[ঀ-৿]"), "NotoSansBengali", "NotoSerifBengali"),
+    (re.compile(r"[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]"), "NotoSansArabic", "NotoNaskhArabic"),
+    (re.compile(r"[ሀ-᎟ⶀ-⷟]"), "NotoSansEthiopic", "NotoSerifEthiopic"),
+    (re.compile(r"[က-႟ꩠ-ꩿ]"), "NotoSansMyanmar", "NotoSerifMyanmar"),
+]
+CJK = re.compile(r"[ᄀ-ᇿ⺀-鿿가-힯豈-﫿＀-￯]")
+RTL = re.compile(r"[֐-ࣿיִ-﷿ﹰ-﻿]")
+
+
+def font_available(family):
+    """Make sure regular and bold files for a Noto family are in pdf/fonts (downloaded once)."""
+    ok = True
+    for weight in ("Regular", "Bold"):
+        path = os.path.join(FONT_DIR, f"{family}-{weight}.ttf")
+        if os.path.exists(path):
+            continue
+        try:
+            os.makedirs(FONT_DIR, exist_ok=True)
+            with urllib.request.urlopen(FONT_URL.format(family=family, weight=weight), timeout=30) as r:
+                data = r.read()
+            with open(path + ".part", "wb") as f:
+                f.write(data)
+            os.replace(path + ".part", path)
+        except Exception as err:  # offline: MuPDF's built-in fallback fonts still render the text
+            print(f"font {family}-{weight} unavailable: {err}", file=sys.stderr)
+            ok = False
+    return ok
+
+
+def font_css(families):
+    rules = []
+    for family in sorted(families):
+        for weight, css_weight in (("Regular", "normal"), ("Bold", "bold")):
+            rules.append(f"@font-face {{ font-family: {family}; font-weight: {css_weight}; src: url({family}-{weight}.ttf); }}")
+    return "\n".join(rules)
+
+
+def runs_html(text, serif, usable):
+    """Wrap each stretch of text in the Noto font for its script, so every glyph comes from a real,
+    matching font (including bold) instead of a mismatched fallback."""
+    base = "NotoSerif" if serif else "NotoSans"
+    out = []
+    family, buf = None, []
+
+    def flush():
+        if buf:
+            chunk = html.escape("".join(buf))
+            out.append(f'<span style="font-family: {family}">{chunk}</span>' if family in usable else chunk)
+            buf.clear()
+
+    for ch in text:
+        if ch == "\n":
+            flush()
+            out.append("<br>")
+            continue
+        want = next((serif_family if serif else sans for rx, sans, serif_family in SCRIPTS if rx.match(ch)), None)
+        if want is None:
+            if ch.isspace() or not ch.isalnum():
+                buf.append(ch)  # spaces and common punctuation stay with the current run
+                continue
+            want = None if CJK.match(ch) else base
+        if want != family:
+            flush()
+            family = want
+        buf.append(ch)
+    flush()
+    return "".join(out)
+
 
 def color_hex(value):
     return f"#{value:06x}"
+
+
+SANS_HINTS = ("helvetica", "arial", "sans", "inter", "roboto", "calibri", "verdana", "segoe", "tahoma", "lato", "open", "frutiger", "futura", "avenir", "gotham")
+SERIF_HINTS = ("times", "serif", "georgia", "garamond", "roman", "cambria", "minion", "palatino", "baskerville", "book", "caslon")
+
+
+def is_serif(span):
+    # Font names are more reliable than the PDF's serif flag, which many generators set wrongly.
+    name = span["font"].lower()
+    if any(h in name for h in SANS_HINTS):
+        return False
+    if any(h in name for h in SERIF_HINTS):
+        return True
+    return bool(span["flags"] & 4)
 
 
 def line_text(line):
@@ -94,7 +184,7 @@ def extract(path):
             main = max(spans, key=lambda s: len(s["text"].strip()))
             bold = bool(main["flags"] & 16) or "bold" in main["font"].lower()
             italic = bool(main["flags"] & 2) or "italic" in main["font"].lower() or "oblique" in main["font"].lower()
-            serif = bool(main["flags"] & 4)
+            serif = is_serif(main)
 
             centers = [(l["bbox"][0] + l["bbox"][2]) / 2 for l in lines]
             block_center = (bx0 + bx1) / 2
@@ -172,6 +262,18 @@ def render(src, out, preview=None):
         if b.get("translation", "").strip():
             by_page.setdefault(b["page"], []).append(b)
 
+    # Work out which Noto families the translations need and make sure they're on disk.
+    needed = set()
+    for blocks in by_page.values():
+        for b in blocks:
+            needed.add("NotoSerif" if b["serif"] else "NotoSans")
+            for rx, sans, serif_family in SCRIPTS:
+                if rx.search(b["translation"]):
+                    needed.add(serif_family if b["serif"] else sans)
+    usable = {f for f in needed if font_available(f)}
+    archive = pymupdf.Archive(FONT_DIR) if usable else None
+    faces = font_css(usable)
+
     min_scale = 1.0
     for pno, blocks in by_page.items():
         page = doc[pno]
@@ -187,17 +289,24 @@ def render(src, out, preview=None):
         for b in blocks:
             rect = boxes[b["id"]]
             line_height = max(1.05, min(1.5, b.get("lineHeight", 1.2)))
+            translation = b["translation"].strip()
+            base = "NotoSerif" if b["serif"] else "NotoSans"
+            family = base if base in usable else ("serif" if b["serif"] else "sans-serif")
+            align = "right" if b["align"] == "left" and RTL.search(translation) else b["align"]
             css = (
-                "* { margin: 0; padding: 0; }"
-                f"body {{ font-family: {'serif' if b['serif'] else 'sans-serif'}; font-size: {b['size']}px;"
+                f"{faces}\n* {{ margin: 0; padding: 0; }}"
+                f"body {{ font-family: {family}; font-size: {b['size']}px;"
                 f" color: {b['color']}; font-weight: {'bold' if b['bold'] else 'normal'};"
-                f" font-style: {'italic' if b['italic'] else 'normal'}; line-height: {line_height};"
-                f" text-align: {b['align']}; }}"
+                f" line-height: {line_height}; text-align: {align}; }}"
             )
-            body = "<br>".join(html.escape(line) for line in b["translation"].strip().split("\n"))
-            spare, scale = page.insert_htmlbox(rect, body, css=css, scale_low=0)
+            body = runs_html(translation, b["serif"], usable)
+            spare, scale = page.insert_htmlbox(rect, body, css=css, scale_low=0, archive=archive)
             if spare >= 0:
                 min_scale = min(min_scale, scale)
+    try:
+        doc.subset_fonts()  # embed only the glyphs used; keeps the file small
+    except Exception as err:
+        print(f"font subsetting skipped: {err}", file=sys.stderr)
     doc.save(out, garbage=3, deflate=True)
     if preview:
         doc[0].get_pixmap(dpi=100).save(preview)
