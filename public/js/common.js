@@ -421,12 +421,14 @@ function renderDocCard(doc, opts) {
       <div class="doc-icon">${icon(DOC_ICONS[doc.type] || "file")}</div>
       <div><h3 dir="auto"></h3><p class="doc-meta"></p></div>
     </div>
+    ${doc.translatedFile && opts.fileUrl ? `<a class="doc-preview" target="_blank" rel="noopener"><img alt="" loading="lazy"></a>` : ""}
     <div class="seg" role="tablist">
       <button type="button" data-view="translated"></button>
       <button type="button" data-view="original"></button>
     </div>
     <div class="doc-body" dir="auto"></div>
     <div class="doc-actions">
+      ${doc.translatedFile && opts.fileUrl ? `<a class="pill pill-strong translated-link" target="_blank" rel="noopener">${icon("file")}<span></span></a>` : ""}
       <button type="button" class="pill play-btn">${icon("volume")}<span></span></button>
       <button type="button" class="pill print-btn">${icon("printer")}<span></span></button>
       ${doc.file && opts.fileUrl ? `<a class="pill file-link" target="_blank" rel="noopener">${icon("external")}<span></span></a>` : ""}
@@ -444,6 +446,16 @@ function renderDocCard(doc, opts) {
   if (fileLink) {
     fileLink.href = opts.fileUrl(doc);
     $("span", fileLink).textContent = labels.originalFile;
+  }
+  if (doc.translatedFile && opts.fileUrl) {
+    const translatedUrl = opts.fileUrl(doc, "translated");
+    const preview = $(".doc-preview", el);
+    preview.href = translatedUrl;
+    $("img", preview).src = opts.fileUrl(doc, "preview");
+    $("img", preview).alt = labels.translatedFile;
+    const link = $(".translated-link", el);
+    link.href = translatedUrl;
+    $("span", link).textContent = labels.translatedFile;
   }
 
   let view = opts.defaultView || "translated";
@@ -510,7 +522,7 @@ function printDocument(title, body, subtitle) {
     h1{font-size:24px;margin:0 0 4px}.sub{color:#6b7f8b;font-size:13px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #e1e8ec}
     .body{white-space:pre-wrap;font-size:16px}.foot{margin-top:32px;font-size:12px;color:#8a9aa4}</style></head>
     <body><h1 dir="auto">${escapeHtml(title)}</h1><div class="sub">${escapeHtml(subtitle)}</div>
-    <div class="body" dir="auto">${escapeHtml(body)}</div><div class="foot">LinguaLink</div></body></html>`);
+    <div class="body" dir="auto">${escapeHtml(body)}</div><div class="foot">Clara</div></body></html>`);
   w.document.close();
   w.focus();
   setTimeout(() => w.print(), 300);

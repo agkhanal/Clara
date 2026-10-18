@@ -38,6 +38,7 @@ const STRINGS = {
   autoOff: "Messages won't be read aloud",
   print: "Print",
   originalFile: "Original document",
+  translatedFile: "Open the translated document",
   reply: "Reply",
   sendReply: "Send",
   english: "English",
@@ -153,7 +154,7 @@ function startSession(session) {
 }
 
 async function loadStrings(lang) {
-  const cacheKey = `ll.strings.${lang.code}.v2`;
+  const cacheKey = `ll.strings.${lang.code}.v3`;
   const cached = pref(cacheKey, null);
   if (cached) {
     T = { ...STRINGS, ...cached };
@@ -174,7 +175,7 @@ function applyStrings() {
   for (const node of $$("[data-i18n]")) node.textContent = t(node.dataset.i18n);
   for (const node of $$("[data-i18n-placeholder]")) node.placeholder = t(node.dataset.i18nPlaceholder);
   $("#visit-title").textContent = t("visitWith", { doctor: state.session.doctorName });
-  document.title = `${t("visitWith", { doctor: state.session.doctorName })} · LinguaLink`;
+  document.title = `${t("visitWith", { doctor: state.session.doctorName })} · Clara`;
   recLabels.cancel = t("cancel");
   recLabels.listening = t("listening");
   recBar.cancelButton.textContent = t("cancel");
@@ -456,12 +457,12 @@ function docOpts() {
   return {
     labels: {
       listen: t("listen"), print: t("print"), english: t("english"), reply: t("reply"),
-      sendReply: t("sendReply"), cancel: t("cancel"), originalFile: t("originalFile"),
+      sendReply: t("sendReply"), cancel: t("cancel"), originalFile: t("originalFile"), translatedFile: t("translatedFile"),
     },
     typeLabel: (type) => t(`type_${type}`),
     defaultView: "translated",
     languageLabel: state.session.language.native,
-    fileUrl: (doc) => `/api/sessions/${state.session.id}/documents/${doc.id}/file`,
+    fileUrl: (doc, v) => `/api/sessions/${state.session.id}/documents/${doc.id}/file${v ? `?v=${v}` : ""}`,
     onReply: (doc, text) => sendMessage(text, "text", doc.id),
   };
 }

@@ -885,7 +885,7 @@ function localCertificate(ip) {
   }
   const altNames = [{ type: 2, value: "localhost" }, { type: 7, ip: "127.0.0.1" }];
   if (ip) altNames.push({ type: 7, ip });
-  const pems = selfsigned.generate([{ name: "commonName", value: "LinguaLink (local)" }], {
+  const pems = selfsigned.generate([{ name: "commonName", value: "Clara (local)" }], {
     days: 825,
     keySize: 2048,
     algorithm: "sha256",
@@ -909,7 +909,7 @@ if (LOCAL_HTTPS) {
 }
 
 app.listen(PORT, () => {
-  console.log(`LinguaLink running at http://localhost:${PORT}`);
+  console.log(`Clara running at http://localhost:${PORT}`);
   if (!process.env.ANTHROPIC_API_KEY) console.warn("! ANTHROPIC_API_KEY missing — translation won't work");
   if (!GROQ_KEY) console.warn("! GROQ_API_KEY missing — voice input disabled");
   if (!ELEVEN_KEY) console.warn("! ELEVENLABS_API_KEY missing — using the basic fallback voice");

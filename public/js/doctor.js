@@ -127,7 +127,7 @@ async function startSession(session) {
   const lang = session.language;
   el.setup.hidden = true;
   el.session.hidden = false;
-  document.title = `Visit ${session.id} · LinguaLink`;
+  document.title = `Visit ${session.id} · Clara`;
   $("#code-label").textContent = session.id;
   $("#lang-chip span").textContent = lang.native === lang.name ? lang.name : `${lang.name} · ${lang.native}`;
   $("#doc-sub").textContent = `Written in English, delivered in ${lang.name}.`;
@@ -470,11 +470,11 @@ const typeLabel = (id) => DOC_TYPES.find((t) => t.id === id)?.label || "Document
 
 function docOpts() {
   return {
-    labels: { listen: "Listen", print: "Print", english: "English", originalFile: "Original file" },
+    labels: { listen: "Listen", print: "Print", english: "English", originalFile: "Original file", translatedFile: "Translated PDF" },
     typeLabel,
     defaultView: "translated",
     languageLabel: state.session.language.native,
-    fileUrl: (doc) => `/api/sessions/${state.session.id}/documents/${doc.id}/file`,
+    fileUrl: (doc, v) => `/api/sessions/${state.session.id}/documents/${doc.id}/file${v ? `?v=${v}` : ""}`,
   };
 }
 

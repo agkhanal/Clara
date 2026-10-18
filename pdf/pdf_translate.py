@@ -55,11 +55,17 @@ def font_available(family):
     return ok
 
 
+def css_name(family):
+    # MuPDF can confuse font families whose names share a prefix (NotoSans / NotoSansDevanagari),
+    # so each family gets a short alias that is never a prefix of another.
+    return f"F{abs(hash(family)) % 10**8}x"
+
+
 def font_css(families):
     rules = []
     for family in sorted(families):
         for weight, css_weight in (("Regular", "normal"), ("Bold", "bold")):
-            rules.append(f"@font-face {{ font-family: {family}; font-weight: {css_weight}; src: url({family}-{weight}.ttf); }}")
+            rules.append(f"@font-face {{ font-family: {css_name(family)}; font-weight: {css_weight}; src: url({family}-{weight}.ttf); }}")
     return "\n".join(rules)
 
 
@@ -73,7 +79,7 @@ def runs_html(text, serif, usable):
     def flush():
         if buf:
             chunk = html.escape("".join(buf))
-            out.append(f'<span style="font-family: {family}">{chunk}</span>' if family in usable else chunk)
+            out.append(f'<span style="font-family: {css_name(family)}">{chunk}</span>' if family in usable else chunk)
             buf.clear()
 
     for ch in text:
@@ -83,9 +89,10 @@ def runs_html(text, serif, usable):
             continue
         want = next((serif_family if serif else sans for rx, sans, serif_family in SCRIPTS if rx.match(ch)), None)
         if want is None:
-            if ch.isspace() or not ch.isalnum():
-                buf.append(ch)  # spaces and common punctuation stay with the current run
+            if ch.isspace():
+                buf.append(ch)  # spaces stay with the current run
                 continue
+            # Letters and punctuation outside the script blocks (·, —, °, digits) come from Noto Sans/Serif.
             want = None if CJK.match(ch) else base
         if want != family:
             flush()
@@ -291,7 +298,7 @@ def render(src, out, preview=None):
             line_height = max(1.05, min(1.5, b.get("lineHeight", 1.2)))
             translation = b["translation"].strip()
             base = "NotoSerif" if b["serif"] else "NotoSans"
-            family = base if base in usable else ("serif" if b["serif"] else "sans-serif")
+            family = css_name(base) if base in usable else ("serif" if b["serif"] else "sans-serif")
             align = "right" if b["align"] == "left" and RTL.search(translation) else b["align"]
             css = (
                 f"{faces}\n* {{ margin: 0; padding: 0; }}"

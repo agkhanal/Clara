@@ -522,6 +522,17 @@ a { color: inherit; }
 .file-chip .size { font-size: 12.5px; color: var(--muted); }
 .progress-note { font-size: 13px; color: var(--muted); text-align: center; margin-top: -4px; }
 a.pill { text-decoration: none; }
+.pill-strong { background: var(--brand-strong); color: #fff; }
+.pill-strong:hover { background: var(--brand-strong-hover); color: #fff; }
+.patient-ui .pill-strong { background: var(--violet-strong); }
+.patient-ui .pill-strong:hover { background: var(--violet-strong-hover); }
+.doc-preview {
+  display: block; margin-top: 12px; border-radius: var(--radius-sm); overflow: hidden;
+  border: 1px solid var(--line); background: #fff; max-height: 280px; box-shadow: var(--shadow-sm);
+  transition: transform 0.2s var(--ease), box-shadow 0.2s;
+}
+.doc-preview:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.doc-preview img { display: block; width: 100%; height: auto; }
 
 /* Theme toggle placement outside the session header */
 .corner-actions { position: fixed; top: max(14px, env(safe-area-inset-top)); right: 14px; z-index: 20; }
