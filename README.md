@@ -9,7 +9,7 @@ Patients and doctors speak their own language and understand each other, during 
 
 ## About
 
-**Clara** is a mobile-friendly web app that lets a doctor and a patient who don't share a language talk to each other by voice. Each person speaks in their own language and hears the other in theirs, read aloud in a natural voice. After the visit, the doctor can send visit summaries, medication instructions, care instructions, and forms, and the patient receives them translated into their language. Uploaded PDFs come back as the same document with only the text translated, keeping the original layout.
+**Clara** is a mobile-friendly web app that lets a doctor and a patient who don't share a language talk to each other by voice. Each person speaks in their own language and hears the other in theirs, read aloud in a natural voice. It works between any two of its 24 supported languages, so it isn't limited to English-speaking doctors: a Spanish-speaking doctor can treat a Nepali-speaking patient just as easily. After the visit, the doctor can send visit summaries, medication instructions, care instructions, and forms, and the patient receives them translated into their language. Uploaded PDFs come back as the same document with only the text translated, keeping the original layout.
 
 Built for the **Lehigh Hackathon 2026**, *Reimagine Well-Being* track.
 
@@ -23,7 +23,9 @@ Millions of patients don't speak the language their doctor speaks. In the U.S. a
 
 - **Not being understood.** Describing symptoms, history, or worries through gestures, a family member, or a child interpreting.
 - **Not understanding.** Nodding along to a diagnosis or instructions they couldn't follow.
-- **Going home with paperwork they can't read.** Discharge instructions, medication schedules, and warning signs written only in English.
+- **Going home with paperwork they can't read.** Discharge instructions, medication schedules, and warning signs written in a language they don't read.
+
+And the gap isn't only with English. Doctors around the world practice in Spanish, French, Arabic, Russian, and many other languages, while their patients, often immigrants and refugees, speak something else entirely. Most interpretation tools assume one side speaks English.
 
 Professional interpreters are the gold standard, but they're often unavailable on short notice, in small clinics, or for less common languages like Nepali, Somali, or Burmese. The result is misdiagnosis, medication errors, missed follow-ups, and patients who stop seeking care.
 
@@ -31,17 +33,18 @@ Professional interpreters are the gold standard, but they're often unavailable o
 
 Clara turns the patient's own phone into an interpreter, with nothing to install.
 
-1. **Start a visit.** The doctor picks the patient's language and gets a QR code.
+1. **Start a visit.** The doctor picks their own language and the patient's, and gets a QR code. The doctor's screen switches to their language.
 2. **Patient joins.** They scan the code with their phone camera. The whole app, including every button and label, appears in their language.
 3. **Talk by voice.** Either person taps the mic and speaks. Clara transcribes it, translates it, and reads it aloud on the other person's device. Both sides can see the original and the translation.
 4. **Send documents home.** The doctor writes or dictates a summary, or uploads a PDF. The patient gets it in their language and can listen to it, print it, or reply with questions.
 
 ### Key features
 
-- **Voice-to-voice conversation** in 23 languages, including Nepali, Spanish, Mandarin, Arabic, Vietnamese, Haitian Creole, Somali, Amharic, and Burmese.
+- **Any language to any language.** The doctor and the patient each choose from 24 languages, including English, Nepali, Spanish, Mandarin, Arabic, Vietnamese, Haitian Creole, Somali, Amharic, and Burmese. Clara translates directly between the two, with no English in between.
+- **Voice-to-voice conversation.** Speak naturally and the translation is read aloud on the other person's device.
 - **Built for real speech.** Patients mix languages ("मलाई headache छ"), use slang, and get misheard by speech recognition. Clara reconstructs what was actually said before translating. It's told never to invent symptoms or soften what the patient says.
-- **Layout-preserving PDF translation.** An uploaded discharge summary comes back as the same document, with the same logo, tables, colors, and fonts, in the patient's language. Text is re-fitted so nothing overlaps or runs off the page.
-- **Patient interface in their own language.** The interface is translated automatically, with a large one-tap mic button for patients who can't easily read or type.
+- **Layout-preserving PDF translation.** An uploaded discharge summary comes back as the same document, with the same logo, tables, colors, and fonts, in the patient's language. It works across scripts, from Devanagari and Arabic to Chinese, Amharic, and Burmese. Text is re-fitted so nothing overlaps or runs off the page.
+- **Everyone sees the app in their own language.** Both the doctor's and the patient's interfaces are translated automatically. Patients get a large one-tap mic button in case they can't easily read or type.
 - **Real-time sync** between devices, with live status ("Patient is speaking…", "Translating…").
 - **Accessible by design.** Mobile-first, works in light and dark mode, reads every message aloud, and can print documents to take home.
 
@@ -49,7 +52,7 @@ Clara turns the patient's own phone into an interpreter, with nothing to install
 
 | Area | Technology |
 |---|---|
-| **Translation and reasoning** | [Claude API](https://docs.anthropic.com) (Anthropic). **Claude Sonnet 5.5** reconstructs and translates patient speech; **Claude Haiku 5.5** translates doctor messages, documents, PDFs, and the patient interface |
+| **Translation and reasoning** | [Claude API](https://docs.anthropic.com) (Anthropic). **Claude Sonnet 5.5** reconstructs and translates patient speech; **Claude Haiku 5.5** translates doctor messages, documents, PDFs, and both interfaces |
 | **Speech to text** | [Groq](https://groq.com) Whisper large-v3, with optional [ElevenLabs Scribe](https://elevenlabs.io) |
 | **Text to speech** | [ElevenLabs](https://elevenlabs.io) multilingual voices (Google Translate TTS as a fallback) |
 | **Backend** | Node.js, Express, Server-Sent Events for real-time updates, Multer for uploads |
