@@ -192,12 +192,7 @@ a { color: inherit; }
 }
 .landing-inner { max-width: 1080px; margin: 0 auto; padding: 24px 20px 48px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; text-decoration: none; }
-.brand-mark {
-  width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center;
-  background: linear-gradient(140deg, #13a091, #075a52); color: #fff;
-  box-shadow: 0 6px 16px var(--brand-glow);
-}
-.brand-mark .icon { width: 20px; height: 20px; }
+.brand-mark { width: 36px; height: 36px; display: block; filter: drop-shadow(0 4px 10px var(--brand-glow)); }
 
 .hero { padding: 56px 0 36px; max-width: 720px; }
 .eyebrow {
