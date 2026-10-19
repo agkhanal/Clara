@@ -7,6 +7,12 @@ Patients and doctors speak their own language and understand each other, during 
 
 ---
 
+## Demo
+
+[![Clara demo video](https://img.youtube.com/vi/TGTcA3AfFjA/maxresdefault.jpg)](https://youtu.be/TGTcA3AfFjA)
+
+▶️ [Watch the demo on YouTube](https://youtu.be/TGTcA3AfFjA)
+
 ## About
 
 **Clara** is a mobile-friendly web app that lets a doctor and a patient who don't share a language talk to each other by voice. Each person speaks in their own language and hears the other in theirs, read aloud in a natural voice. It works between any two of its 24 supported languages, so it isn't limited to English-speaking doctors: a Spanish-speaking doctor can treat a Nepali-speaking patient just as easily. After the visit, the doctor can send visit summaries, medication instructions, care instructions, and forms, and the patient receives them translated into their language. Uploaded PDFs come back as the same document with only the text translated, keeping the original layout.
