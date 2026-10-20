@@ -27,6 +27,7 @@ FONT_URL = "https://github.com/notofonts/notofonts.github.io/raw/main/fonts/{fam
 SCRIPTS = [
     (re.compile(r"[ऀ-ॿ꣠-ꣿ᳐-᳿]"), "NotoSansDevanagari", "NotoSerifDevanagari"),
     (re.compile(r"[ঀ-৿]"), "NotoSansBengali", "NotoSerifBengali"),
+    (re.compile(r"[ఀ-౿]"), "NotoSansTelugu", "NotoSerifTelugu"),
     (re.compile(r"[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]"), "NotoSansArabic", "NotoNaskhArabic"),
     (re.compile(r"[ሀ-᎟ⶀ-⷟]"), "NotoSansEthiopic", "NotoSerifEthiopic"),
     (re.compile(r"[က-႟ꩠ-ꩿ]"), "NotoSansMyanmar", "NotoSerifMyanmar"),

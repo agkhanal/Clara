@@ -15,7 +15,7 @@ Patients and doctors speak their own language and understand each other, during 
 
 ## About
 
-**Clara** is a mobile-friendly web app that lets a doctor and a patient who don't share a language talk to each other by voice. Each person speaks in their own language and hears the other in theirs, read aloud in a natural voice. It works between any two of its 24 supported languages, so it isn't limited to English-speaking doctors: a Spanish-speaking doctor can treat a Nepali-speaking patient just as easily. After the visit, the doctor can send visit summaries, medication instructions, care instructions, and forms, and the patient receives them translated into their language. Uploaded PDFs come back as the same document with only the text translated, keeping the original layout.
+**Clara** is a mobile-friendly web app that lets a doctor and a patient who don't share a language talk to each other by voice. Each person speaks in their own language and hears the other in theirs, read aloud in a natural voice. It works between any two of its 25 supported languages, so it isn't limited to English-speaking doctors: a Spanish-speaking doctor can treat a Nepali-speaking patient just as easily. After the visit, the doctor can send visit summaries, medication instructions, care instructions, and forms, and the patient receives them translated into their language. Uploaded PDFs come back as the same document with only the text translated, keeping the original layout.
 
 Built for the **Lehigh Hackathon 2026**, *Reimagine Well-Being* track.
 
@@ -46,10 +46,10 @@ Clara turns the patient's own phone into an interpreter, with nothing to install
 
 ### Key features
 
-- **Any language to any language.** The doctor and the patient each choose from 24 languages, including English, Nepali, Spanish, Mandarin, Arabic, Vietnamese, Haitian Creole, Somali, Amharic, and Burmese. Clara translates directly between the two, with no English in between.
+- **Any language to any language.** The doctor and the patient each choose from 25 languages, including English, Nepali, Spanish, Mandarin, Arabic, Vietnamese, Haitian Creole, Somali, Amharic, and Burmese. Clara translates directly between the two, with no English in between.
 - **Voice-to-voice conversation.** Speak naturally and the translation is read aloud on the other person's device.
 - **Built for real speech.** Patients mix languages ("मलाई headache छ"), use slang, and get misheard by speech recognition. Clara reconstructs what was actually said before translating. It's told never to invent symptoms or soften what the patient says.
-- **Layout-preserving PDF translation.** An uploaded discharge summary comes back as the same document, with the same logo, tables, colors, and fonts, in the patient's language. It works across scripts, from Devanagari and Arabic to Chinese, Amharic, and Burmese. Text is re-fitted so nothing overlaps or runs off the page.
+- **Layout-preserving PDF translation.** An uploaded discharge summary comes back as the same document, with the same logo, tables, colors, and fonts, in the patient's language. It works across scripts, from Devanagari, Arabic, and Telugu to Chinese, Amharic, and Burmese. Text is re-fitted so nothing overlaps or runs off the page.
 - **Everyone sees the app in their own language.** Both the doctor's and the patient's interfaces are translated automatically. Patients get a large one-tap mic button in case they can't easily read or type.
 - **Real-time sync** between devices, with live status ("Patient is speaking…", "Translating…").
 - **Accessible by design.** Mobile-first, works in light and dark mode, reads every message aloud, and can print documents to take home.

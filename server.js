@@ -29,6 +29,7 @@ const LANGUAGES = [
   { name: "Nepali", native: "नेपाली", code: "ne", script: "Devanagari" },
   { name: "Hindi", native: "हिन्दी", code: "hi", script: "Devanagari" },
   { name: "Bengali", native: "বাংলা", code: "bn", script: "Bengali" },
+  { name: "Telugu", native: "తెలుగు", code: "te", script: "Telugu" },
   { name: "Urdu", native: "اردو", code: "ur", script: "Urdu (Perso-Arabic, never Devanagari)" },
   { name: "Korean", native: "한국어", code: "ko", script: "Hangul" },
   { name: "Tagalog", native: "Tagalog", code: "tl", script: "Latin" },
@@ -219,6 +220,7 @@ const SCRIPT_RANGES = {
   Devanagari: /[\u0900-\u097F]/,
   Arabic: /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/,
   Bengali: /[\u0980-\u09FF]/,
+  Telugu: /[\u0C00-\u0C7F]/,
   Ethiopic: /[\u1200-\u139F]/,
   Myanmar: /[\u1000-\u109F]/,
   Cyrillic: /[\u0400-\u04FF]/,
@@ -227,7 +229,7 @@ const SCRIPT_RANGES = {
   Kana: /[\u3040-\u30FF]/,
 };
 const ALLOWED_SCRIPTS = {
-  ne: ["Devanagari"], hi: ["Devanagari"], ar: ["Arabic"], ur: ["Arabic"], fa: ["Arabic"], bn: ["Bengali"],
+  ne: ["Devanagari"], hi: ["Devanagari"], ar: ["Arabic"], ur: ["Arabic"], fa: ["Arabic"], bn: ["Bengali"], te: ["Telugu"],
   am: ["Ethiopic"], my: ["Myanmar"], ru: ["Cyrillic"], uk: ["Cyrillic"], ko: ["Hangul", "Han"], zh: ["Han"], ja: ["Han", "Kana"],
 };
 function wrongScript(text, lang) {
